@@ -1,0 +1,25 @@
+# JVM metrics contract: the metrics (and labels) that our dashboards and alerts depend on.
+#
+# Each signal maps a logical name to the metric that currently carries it, and each
+# logical label to the label name that currently carries it. Dashboards and alert rules
+# are generated from this file (scripts/build_dashboard.py, scripts/build_rules.py), and CI
+# checks it against the schema the pinned agent version really emits (scripts/check_schema.py).
+job: otel-agent
+signals:
+  memory_used:
+    metric: process_runtime_jvm_memory_usage_bytes
+    labels: {type: type, pool: pool}
+  memory_limit:
+    metric: process_runtime_jvm_memory_limit_bytes
+    labels: {type: type, pool: pool}
+  cpu_utilization:
+    metric: process_runtime_jvm_cpu_utilization_ratio
+  gc_duration:
+    metric: process_runtime_jvm_gc_duration_seconds
+    histogram: true
+    labels: {gc: gc, action: action}
+  threads:
+    metric: process_runtime_jvm_threads_count
+    labels: {daemon: daemon}
+  classes_loaded:
+    metric: process_runtime_jvm_classes_current_loaded

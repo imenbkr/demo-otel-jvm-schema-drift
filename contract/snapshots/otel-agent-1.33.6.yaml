@@ -1,0 +1,42 @@
+agent_version: 1.33.6
+captured_at: '2026-11-07T19:41:05Z'
+metrics:
+  process_runtime_jvm_buffer_count:
+  - pool
+  process_runtime_jvm_buffer_limit_bytes:
+  - pool
+  process_runtime_jvm_buffer_usage_bytes:
+  - pool
+  process_runtime_jvm_classes_current_loaded: []
+  process_runtime_jvm_classes_loaded_total: []
+  process_runtime_jvm_classes_unloaded_total: []
+  process_runtime_jvm_cpu_utilization_ratio: []
+  process_runtime_jvm_gc_duration_seconds_bucket:
+  - action
+  - gc
+  - le
+  process_runtime_jvm_gc_duration_seconds_count:
+  - action
+  - gc
+  process_runtime_jvm_gc_duration_seconds_sum:
+  - action
+  - gc
+  process_runtime_jvm_memory_committed_bytes:
+  - pool
+  - type
+  process_runtime_jvm_memory_init_bytes:
+  - pool
+  - type
+  process_runtime_jvm_memory_limit_bytes:
+  - pool
+  - type
+  process_runtime_jvm_memory_usage_after_last_gc_bytes:
+  - pool
+  - type
+  process_runtime_jvm_memory_usage_bytes:
+  - pool
+  - type
+  process_runtime_jvm_system_cpu_load_1m: []
+  process_runtime_jvm_system_cpu_utilization_ratio: []
+  process_runtime_jvm_threads_count:
+  - daemon

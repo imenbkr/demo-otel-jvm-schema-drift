@@ -1,0 +1,136 @@
+# Spring PetClinic Microservices + OpenTelemetry Java agent + Prometheus + Grafana.
+# Host ports: app 8180, Prometheus 9190, Grafana 3100.
+
+x-agent-env: &agent-env
+  JAVA_TOOL_OPTIONS: "-javaagent:/agents/opentelemetry-javaagent-${OTEL_AGENT_VERSION}.jar"
+  # The agent serves its metrics in Prometheus format on :9464 (works the same in 1.x and 2.x)
+  OTEL_METRICS_EXPORTER: prometheus
+  OTEL_EXPORTER_PROMETHEUS_PORT: "9464"
+  OTEL_TRACES_EXPORTER: none
+  OTEL_LOGS_EXPORTER: none
+  # Only the agent's own JVM runtime metrics, not Spring's Micrometer metrics bridged through it
+  # (the bridge was on by default in 1.x and off in 2.x, which would add a second change)
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "false"
+
+x-service: &service
+  deploy:
+    resources:
+      limits:
+        memory: 512M
+  volumes:
+    - agents:/agents:ro
+  depends_on: &service-deps
+    otel-agent:
+      condition: service_completed_successfully
+    config-server:
+      condition: service_healthy
+    discovery-server:
+      condition: service_healthy
+
+services:
+  # Downloads the agent version from .env into a shared volume, then exits
+  otel-agent:
+    image: curlimages/curl:8.11.1
+    user: "0"
+    volumes:
+      - agents:/agents
+    command:
+      - sh
+      - -c
+      - >-
+        test -s /agents/opentelemetry-javaagent-${OTEL_AGENT_VERSION}.jar ||
+        curl -fsSL -o /agents/opentelemetry-javaagent-${OTEL_AGENT_VERSION}.jar
+        https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_AGENT_VERSION}/opentelemetry-javaagent.jar
+
+  config-server:
+    image: springcommunity/spring-petclinic-config-server:${PETCLINIC_VERSION}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-I", "http://config-server:8888"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  discovery-server:
+    image: springcommunity/spring-petclinic-discovery-server:${PETCLINIC_VERSION}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://discovery-server:8761"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      config-server:
+        condition: service_healthy
+
+  customers-service:
+    <<: *service
+    image: springcommunity/spring-petclinic-customers-service:${PETCLINIC_VERSION}
+    environment:
+      <<: *agent-env
+      OTEL_SERVICE_NAME: customers-service
+
+  visits-service:
+    <<: *service
+    image: springcommunity/spring-petclinic-visits-service:${PETCLINIC_VERSION}
+    environment:
+      <<: *agent-env
+      OTEL_SERVICE_NAME: visits-service
+
+  vets-service:
+    <<: *service
+    image: springcommunity/spring-petclinic-vets-service:${PETCLINIC_VERSION}
+    environment:
+      <<: *agent-env
+      OTEL_SERVICE_NAME: vets-service
+
+  api-gateway:
+    <<: *service
+    image: springcommunity/spring-petclinic-api-gateway:${PETCLINIC_VERSION}
+    environment:
+      <<: *agent-env
+      OTEL_SERVICE_NAME: api-gateway
+    ports: ["8180:8080"]
+
+  # Realistic traffic: browse owners, pets, vets and visits through the gateway
+  load:
+    image: grafana/k6:0.57.0
+    command: run /scripts/load.js
+    volumes:
+      - ./k6:/scripts:ro
+    depends_on: [api-gateway]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    ports: ["9190:9090"]
+
+  grafana:
+    image: grafana/grafana:12.3.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/jvm-overview.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3100:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  agents:
+  prometheus-data:

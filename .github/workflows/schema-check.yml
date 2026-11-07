@@ -1,0 +1,36 @@
+name: JVM metric schema check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  schema-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install pyyaml==6.0.2
+
+      - name: Generated rules and dashboards are up to date
+        run: |
+          python scripts/build_rules.py
+          python scripts/build_dashboard.py
+          git diff --exit-code -- prometheus grafana || {
+            echo "::error::Generated files differ from the contract. Run 'make generate' and commit."
+            exit 1
+          }
+
+      - name: Alert rules are valid
+        run: docker run --rm -v "$PWD/prometheus:/p:ro" --entrypoint promtool prom/prometheus:v3.5.0 check rules /p/rules/jvm-schema.yml
+
+      - name: Metrics used by dashboards
+        run: docker run --rm -u "$(id -u)" -v "$PWD:/w" -w /tmp grafana/mimirtool:2.14.0 analyze dashboard --output=/w/metrics-in-grafana.json /w/grafana/dashboards/jvm-overview.json /w/grafana/dashboards/jvm-schema-drift.json
+
+      - name: Dashboards and contract match the pinned agent's schema
+        run: python scripts/check_schema.py --dashboard-metrics metrics-in-grafana.json

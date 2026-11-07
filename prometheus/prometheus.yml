@@ -1,0 +1,31 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  # JVM metrics from the OpenTelemetry Java agent (version set in .env)
+  - job_name: otel-agent
+    static_configs:
+      - targets:
+          - api-gateway:9464
+          - customers-service:9464
+          - visits-service:9464
+          - vets-service:9464
+    relabel_configs: &service-label
+      - source_labels: [__address__]
+        regex: "([^:]+):.*"
+        target_label: service
+
+  # The same JVMs seen through Spring Boot's own metrics library (Micrometer)
+  - job_name: micrometer
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - api-gateway:8080
+          - customers-service:8081
+          - visits-service:8082
+          - vets-service:8083
+    relabel_configs: *service-label
