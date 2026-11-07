@@ -1,7 +1,7 @@
 flowchart LR
-  k6["k6<br/>load test"] -->|HTTP| gw
+  k6["k6 load test"] -->|HTTP| gw
 
-  subgraph app["Spring PetClinic Microservices (Docker Compose)"]
+  subgraph app["Spring PetClinic"]
     direction LR
     gw["api-gateway<br/>☕ + OTel Java agent"]
     subgraph svc["Business services"]
@@ -10,16 +10,18 @@ flowchart LR
       vis["visits-service<br/>☕ + OTel Java agent"]
       vets["vets-service<br/>☕ + OTel Java agent"]
     end
-    cfg["config-server"]
-    disc["discovery-server<br/>(Eureka)"]
     gw --> cust & vis & vets
   end
 
-  dl["otel-agent init container<br/>downloads the agent jar<br/>version from .env"] -->|"/agents volume<br/>-javaagent"| app
-  cfg -.config.-> app
-  disc -.service discovery.-> app
+  subgraph support["Support: config, discovery, agent jar"]
+    direction TB
+    cfg["config-server"]
+    disc["discovery-server (Eureka)"]
+    dl["otel-agent init<br/>downloads the agent jar<br/>(version from .env)"]
+  end
+  support -.-> app
 
-  app -->|"scrape :9464/metrics<br/>every 15s"| prom["Prometheus<br/>stores JVM metrics<br/>evaluates schema-drift rules"]
+  app -->|"scrape :9464/metrics<br/>every 15s"| prom["Prometheus<br/>JVM metrics +<br/>schema-drift rules"]
   prom -->|PromQL| graf["Grafana<br/>JVM overview<br/>JVM schema drift"]
 
   classDef jvm fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b

@@ -17,9 +17,9 @@ Prometheus scrapes it and evaluates the schema-drift rules; Grafana queries Prom
 
 ```mermaid
 flowchart LR
-  k6["k6<br/>load test"] -->|HTTP| gw
+  k6["k6 load test"] -->|HTTP| gw
 
-  subgraph app["Spring PetClinic Microservices (Docker Compose)"]
+  subgraph app["Spring PetClinic"]
     direction LR
     gw["api-gateway<br/>☕ + OTel Java agent"]
     subgraph svc["Business services"]
@@ -28,16 +28,18 @@ flowchart LR
       vis["visits-service<br/>☕ + OTel Java agent"]
       vets["vets-service<br/>☕ + OTel Java agent"]
     end
-    cfg["config-server"]
-    disc["discovery-server<br/>(Eureka)"]
     gw --> cust & vis & vets
   end
 
-  dl["otel-agent init container<br/>downloads the agent jar<br/>version from .env"] -->|"/agents volume<br/>-javaagent"| app
-  cfg -.config.-> app
-  disc -.service discovery.-> app
+  subgraph support["Support: config, discovery, agent jar"]
+    direction TB
+    cfg["config-server"]
+    disc["discovery-server (Eureka)"]
+    dl["otel-agent init<br/>downloads the agent jar<br/>(version from .env)"]
+  end
+  support -.-> app
 
-  app -->|"scrape :9464/metrics<br/>every 15s"| prom["Prometheus<br/>stores JVM metrics<br/>evaluates schema-drift rules"]
+  app -->|"scrape :9464/metrics<br/>every 15s"| prom["Prometheus<br/>JVM metrics +<br/>schema-drift rules"]
   prom -->|PromQL| graf["Grafana<br/>JVM overview<br/>JVM schema drift"]
 
   classDef jvm fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
@@ -55,21 +57,19 @@ panel) keeps asking for the old names, which is why nothing errors.
 
 ```mermaid
 flowchart LR
-  subgraph jvm["One service container (JVM)"]
+  subgraph jvm["Service container"]
     direction TB
-    code["Spring Boot app code"]
-    agent["OpenTelemetry Java agent<br/>attached with JAVA_TOOL_OPTIONS=-javaagent:...<br/>reads JVM runtime (memory, GC, threads, CPU)"]
+    code["Spring Boot app"]
+    agent["OTel Java agent<br/>(-javaagent, same JVM)<br/>reads memory, GC,<br/>threads, CPU"]
     exp["Prometheus exporter<br/>:9464/metrics"]
-    code -.runs in the same JVM.- agent
+    code -.- agent
     agent --> exp
   end
   exp -->|pull| prom["Prometheus"]
-  prom -->|"PromQL<br/>sum by (service) (jvm_memory_used_bytes{jvm_memory_type=&quot;heap&quot;})"| graf["Grafana panel<br/>Heap used"]
+  prom -->|PromQL| graf["Grafana panel<br/>Heap used"]
 
-  v1["Agent 1.33.6 emits<br/>process_runtime_jvm_memory_usage_bytes{type, pool}"]:::old
-  v2["Agent 2.33.1 emits<br/>jvm_memory_used_bytes{jvm_memory_type, jvm_memory_pool_name}"]:::new
-  v1 -.-> exp
-  v2 -.-> exp
+  exp -.->|"agent 1.33.6"| v1["process_runtime_jvm_memory_usage_bytes<br/>{type, pool}"]:::old
+  exp -.->|"agent 2.33.1"| v2["jvm_memory_used_bytes<br/>{jvm_memory_type, jvm_memory_pool_name}"]:::new
 
   classDef old fill:#fce8e6,stroke:#d93025,color:#5b0f0a
   classDef new fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
@@ -105,30 +105,30 @@ from it, so fixing a rename is a change to that one file.
 
 ```mermaid
 flowchart TB
-  contract["contract/jvm-metrics.yaml<br/>signals → metric + label names"]
-  contract -->|scripts/build_dashboard.py| dash["Grafana dashboards"]
-  contract -->|scripts/build_rules.py| rules["Prometheus alert rules"]
+  contract["contract/jvm-metrics.yaml<br/>signal → metric + label names"]
+  contract -->|build_dashboard.py| dash["Grafana dashboards"]
+  contract -->|build_rules.py| rules["Prometheus alert rules"]
 
-  subgraph ci["① CI gate, before deploy (make check / GitHub Actions)"]
+  subgraph ci["① CI gate (make check)"]
     direction LR
     mimir["mimirtool analyze dashboard<br/>metrics the dashboards query"]
-    snap["contract/snapshots/otel-agent-&lt;version&gt;.yaml<br/>metrics + labels the agent really emits"]
-    check["scripts/check_schema.py<br/>missing metric? missing label?<br/>→ likely new name"]
+    snap["snapshots/otel-agent-#lt;version#gt;.yaml<br/>what the agent really emits"]
+    check["check_schema.py<br/>missing metric or label?<br/>→ likely new name"]
     mimir --> check
     snap --> check
   end
   dash --> mimir
   contract --> check
   env[".env<br/>OTEL_AGENT_VERSION"] --> check
+  testprom["Prometheus (test env)"] -->|snapshot.py| snap
 
-  subgraph rt["Runtime, in Prometheus"]
+  subgraph rt["Runtime (Prometheus)"]
     direction LR
     r2["② Contract rules<br/>JvmContractMetricMissing<br/>JvmContractLabelMissing<br/>JvmUnexpectedMetric"]
-    r3["③ Change rules, no contract<br/>JvmMetricNameAppeared / Disappeared<br/>JvmMetricCountChanged"]
+    r3["③ Change rules, no contract<br/>JvmMetricNameAppeared<br/>JvmMetricNameDisappeared<br/>JvmMetricCountChanged"]
   end
   rules --> r2 & r3
-  r2 & r3 --> drift["Grafana: JVM schema drift dashboard"]
-  prom["Prometheus (test env)"] -->|scripts/snapshot.py| snap
+  r2 & r3 --> drift["Grafana: JVM schema drift"]
 
   classDef gate fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
   classDef run fill:#fef3e0,stroke:#e37400,color:#4a2600

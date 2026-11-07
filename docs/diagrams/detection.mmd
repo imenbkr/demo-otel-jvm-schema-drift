@@ -1,28 +1,28 @@
 flowchart TB
-  contract["contract/jvm-metrics.yaml<br/>signals → metric + label names"]
-  contract -->|scripts/build_dashboard.py| dash["Grafana dashboards"]
-  contract -->|scripts/build_rules.py| rules["Prometheus alert rules"]
+  contract["contract/jvm-metrics.yaml<br/>signal → metric + label names"]
+  contract -->|build_dashboard.py| dash["Grafana dashboards"]
+  contract -->|build_rules.py| rules["Prometheus alert rules"]
 
-  subgraph ci["① CI gate, before deploy (make check / GitHub Actions)"]
+  subgraph ci["① CI gate (make check)"]
     direction LR
     mimir["mimirtool analyze dashboard<br/>metrics the dashboards query"]
-    snap["contract/snapshots/otel-agent-&lt;version&gt;.yaml<br/>metrics + labels the agent really emits"]
-    check["scripts/check_schema.py<br/>missing metric? missing label?<br/>→ likely new name"]
+    snap["snapshots/otel-agent-#lt;version#gt;.yaml<br/>what the agent really emits"]
+    check["check_schema.py<br/>missing metric or label?<br/>→ likely new name"]
     mimir --> check
     snap --> check
   end
   dash --> mimir
   contract --> check
   env[".env<br/>OTEL_AGENT_VERSION"] --> check
+  testprom["Prometheus (test env)"] -->|snapshot.py| snap
 
-  subgraph rt["Runtime, in Prometheus"]
+  subgraph rt["Runtime (Prometheus)"]
     direction LR
     r2["② Contract rules<br/>JvmContractMetricMissing<br/>JvmContractLabelMissing<br/>JvmUnexpectedMetric"]
-    r3["③ Change rules, no contract<br/>JvmMetricNameAppeared / Disappeared<br/>JvmMetricCountChanged"]
+    r3["③ Change rules, no contract<br/>JvmMetricNameAppeared<br/>JvmMetricNameDisappeared<br/>JvmMetricCountChanged"]
   end
   rules --> r2 & r3
-  r2 & r3 --> drift["Grafana: JVM schema drift dashboard"]
-  prom["Prometheus (test env)"] -->|scripts/snapshot.py| snap
+  r2 & r3 --> drift["Grafana: JVM schema drift"]
 
   classDef gate fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
   classDef run fill:#fef3e0,stroke:#e37400,color:#4a2600
