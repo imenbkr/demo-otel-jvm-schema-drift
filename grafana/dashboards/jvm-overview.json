@@ -49,7 +49,7 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "max by (service) (process_runtime_jvm_cpu_utilization_ratio{job=\"otel-agent\"})",
+          "expr": "max by (service) (jvm_cpu_recent_utilization{job=\"otel-agent\"})",
           "legendFormat": "{{service}}"
         }
       ],
@@ -87,7 +87,7 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "sum by (service) (process_runtime_jvm_memory_usage_bytes{job=\"otel-agent\", type=\"heap\"})",
+          "expr": "sum by (service) (jvm_memory_used_bytes{job=\"otel-agent\", jvm_memory_type=\"heap\"})",
           "legendFormat": "{{service}}"
         }
       ],
@@ -125,7 +125,7 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "sum by (service) (process_runtime_jvm_memory_usage_bytes{job=\"otel-agent\", type=\"heap\"}) / sum by (service) (process_runtime_jvm_memory_limit_bytes{job=\"otel-agent\", type=\"heap\"} > 0)",
+          "expr": "sum by (service) (jvm_memory_used_bytes{job=\"otel-agent\", jvm_memory_type=\"heap\"}) / sum by (service) (jvm_memory_limit_bytes{job=\"otel-agent\", jvm_memory_type=\"heap\"} > 0)",
           "legendFormat": "{{service}}"
         }
       ],
@@ -178,7 +178,7 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "sum by (service) (rate(process_runtime_jvm_gc_duration_seconds_sum{job=\"otel-agent\"}[2m]))",
+          "expr": "sum by (service) (rate(jvm_gc_duration_seconds_sum{job=\"otel-agent\"}[2m]))",
           "legendFormat": "{{service}}"
         }
       ],
@@ -216,8 +216,8 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "sum by (service, gc) (rate(process_runtime_jvm_gc_duration_seconds_count{job=\"otel-agent\"}[2m]))",
-          "legendFormat": "{{service}} \u00b7 {{gc}}"
+          "expr": "sum by (service, jvm_gc_name) (rate(jvm_gc_duration_seconds_count{job=\"otel-agent\"}[2m]))",
+          "legendFormat": "{{service}} \u00b7 {{jvm_gc_name}}"
         }
       ],
       "fieldConfig": {
@@ -254,7 +254,7 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "sum by (service) (process_runtime_jvm_threads_count{job=\"otel-agent\"})",
+          "expr": "sum by (service) (jvm_thread_count{job=\"otel-agent\"})",
           "legendFormat": "{{service}}"
         }
       ],
@@ -292,7 +292,7 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "max by (service) (process_runtime_jvm_classes_current_loaded{job=\"otel-agent\"})",
+          "expr": "max by (service) (jvm_class_count{job=\"otel-agent\"})",
           "legendFormat": "{{service}}"
         }
       ],

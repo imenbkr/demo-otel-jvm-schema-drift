@@ -7,182 +7,182 @@ groups:
 
       unless
 
-      group by (service) (process_runtime_jvm_memory_usage_bytes{job="otel-agent"})'
+      group by (service) (jvm_memory_used_bytes{job="otel-agent"})'
     for: 1m
     labels:
       severity: critical
       signal: memory_used
-      metric: process_runtime_jvm_memory_usage_bytes
+      metric: jvm_memory_used_bytes
     annotations:
-      summary: '{{ $labels.service }} stopped emitting process_runtime_jvm_memory_usage_bytes'
+      summary: '{{ $labels.service }} stopped emitting jvm_memory_used_bytes'
       description: Signal 'memory_used' in the JVM metrics contract has no data. Dashboards and alerts built on it now show 'No data'.
   - alert: JvmContractLabelMissing
-    expr: 'group by (service) (process_runtime_jvm_memory_usage_bytes{job="otel-agent"})
+    expr: 'group by (service) (jvm_memory_used_bytes{job="otel-agent"})
 
       unless
 
-      group by (service) (process_runtime_jvm_memory_usage_bytes{job="otel-agent", type!="", pool!=""})'
+      group by (service) (jvm_memory_used_bytes{job="otel-agent", jvm_memory_type!="", jvm_memory_pool_name!=""})'
     for: 1m
     labels:
       severity: critical
       signal: memory_used
-      metric: process_runtime_jvm_memory_usage_bytes
+      metric: jvm_memory_used_bytes
     annotations:
-      summary: '{{ $labels.service }}: process_runtime_jvm_memory_usage_bytes lost label(s) type, pool'
+      summary: '{{ $labels.service }}: jvm_memory_used_bytes lost label(s) jvm_memory_type, jvm_memory_pool_name'
       description: The metric still exists but a label the dashboards group or filter by is gone.
   - alert: JvmContractMetricMissing
     expr: 'group by (service) (up{job="otel-agent"} == 1)
 
       unless
 
-      group by (service) (process_runtime_jvm_memory_limit_bytes{job="otel-agent"})'
+      group by (service) (jvm_memory_limit_bytes{job="otel-agent"})'
     for: 1m
     labels:
       severity: critical
       signal: memory_limit
-      metric: process_runtime_jvm_memory_limit_bytes
+      metric: jvm_memory_limit_bytes
     annotations:
-      summary: '{{ $labels.service }} stopped emitting process_runtime_jvm_memory_limit_bytes'
+      summary: '{{ $labels.service }} stopped emitting jvm_memory_limit_bytes'
       description: Signal 'memory_limit' in the JVM metrics contract has no data. Dashboards and alerts built on it now show 'No data'.
   - alert: JvmContractLabelMissing
-    expr: 'group by (service) (process_runtime_jvm_memory_limit_bytes{job="otel-agent"})
+    expr: 'group by (service) (jvm_memory_limit_bytes{job="otel-agent"})
 
       unless
 
-      group by (service) (process_runtime_jvm_memory_limit_bytes{job="otel-agent", type!="", pool!=""})'
+      group by (service) (jvm_memory_limit_bytes{job="otel-agent", jvm_memory_type!="", jvm_memory_pool_name!=""})'
     for: 1m
     labels:
       severity: critical
       signal: memory_limit
-      metric: process_runtime_jvm_memory_limit_bytes
+      metric: jvm_memory_limit_bytes
     annotations:
-      summary: '{{ $labels.service }}: process_runtime_jvm_memory_limit_bytes lost label(s) type, pool'
+      summary: '{{ $labels.service }}: jvm_memory_limit_bytes lost label(s) jvm_memory_type, jvm_memory_pool_name'
       description: The metric still exists but a label the dashboards group or filter by is gone.
   - alert: JvmContractMetricMissing
     expr: 'group by (service) (up{job="otel-agent"} == 1)
 
       unless
 
-      group by (service) (process_runtime_jvm_cpu_utilization_ratio{job="otel-agent"})'
+      group by (service) (jvm_cpu_recent_utilization{job="otel-agent"})'
     for: 1m
     labels:
       severity: critical
       signal: cpu_utilization
-      metric: process_runtime_jvm_cpu_utilization_ratio
+      metric: jvm_cpu_recent_utilization
     annotations:
-      summary: '{{ $labels.service }} stopped emitting process_runtime_jvm_cpu_utilization_ratio'
+      summary: '{{ $labels.service }} stopped emitting jvm_cpu_recent_utilization'
       description: Signal 'cpu_utilization' in the JVM metrics contract has no data. Dashboards and alerts built on it now show 'No data'.
   - alert: JvmContractMetricMissing
     expr: 'group by (service) (up{job="otel-agent"} == 1)
 
       unless
 
-      group by (service) (process_runtime_jvm_gc_duration_seconds_count{job="otel-agent"})'
+      group by (service) (jvm_gc_duration_seconds_count{job="otel-agent"})'
     for: 1m
     labels:
       severity: critical
       signal: gc_duration
-      metric: process_runtime_jvm_gc_duration_seconds_count
+      metric: jvm_gc_duration_seconds_count
     annotations:
-      summary: '{{ $labels.service }} stopped emitting process_runtime_jvm_gc_duration_seconds_count'
+      summary: '{{ $labels.service }} stopped emitting jvm_gc_duration_seconds_count'
       description: Signal 'gc_duration' in the JVM metrics contract has no data. Dashboards and alerts built on it now show 'No data'.
   - alert: JvmContractLabelMissing
-    expr: 'group by (service) (process_runtime_jvm_gc_duration_seconds_count{job="otel-agent"})
+    expr: 'group by (service) (jvm_gc_duration_seconds_count{job="otel-agent"})
 
       unless
 
-      group by (service) (process_runtime_jvm_gc_duration_seconds_count{job="otel-agent", gc!="", action!=""})'
+      group by (service) (jvm_gc_duration_seconds_count{job="otel-agent", jvm_gc_name!="", jvm_gc_action!=""})'
     for: 1m
     labels:
       severity: critical
       signal: gc_duration
-      metric: process_runtime_jvm_gc_duration_seconds_count
+      metric: jvm_gc_duration_seconds_count
     annotations:
-      summary: '{{ $labels.service }}: process_runtime_jvm_gc_duration_seconds_count lost label(s) gc, action'
+      summary: '{{ $labels.service }}: jvm_gc_duration_seconds_count lost label(s) jvm_gc_name, jvm_gc_action'
       description: The metric still exists but a label the dashboards group or filter by is gone.
   - alert: JvmContractMetricMissing
     expr: 'group by (service) (up{job="otel-agent"} == 1)
 
       unless
 
-      group by (service) (process_runtime_jvm_threads_count{job="otel-agent"})'
+      group by (service) (jvm_thread_count{job="otel-agent"})'
     for: 1m
     labels:
       severity: critical
       signal: threads
-      metric: process_runtime_jvm_threads_count
+      metric: jvm_thread_count
     annotations:
-      summary: '{{ $labels.service }} stopped emitting process_runtime_jvm_threads_count'
+      summary: '{{ $labels.service }} stopped emitting jvm_thread_count'
       description: Signal 'threads' in the JVM metrics contract has no data. Dashboards and alerts built on it now show 'No data'.
   - alert: JvmContractLabelMissing
-    expr: 'group by (service) (process_runtime_jvm_threads_count{job="otel-agent"})
+    expr: 'group by (service) (jvm_thread_count{job="otel-agent"})
 
       unless
 
-      group by (service) (process_runtime_jvm_threads_count{job="otel-agent", daemon!=""})'
+      group by (service) (jvm_thread_count{job="otel-agent", jvm_thread_daemon!=""})'
     for: 1m
     labels:
       severity: critical
       signal: threads
-      metric: process_runtime_jvm_threads_count
+      metric: jvm_thread_count
     annotations:
-      summary: '{{ $labels.service }}: process_runtime_jvm_threads_count lost label(s) daemon'
+      summary: '{{ $labels.service }}: jvm_thread_count lost label(s) jvm_thread_daemon'
       description: The metric still exists but a label the dashboards group or filter by is gone.
   - alert: JvmContractMetricMissing
     expr: 'group by (service) (up{job="otel-agent"} == 1)
 
       unless
 
-      group by (service) (process_runtime_jvm_classes_current_loaded{job="otel-agent"})'
+      group by (service) (jvm_class_count{job="otel-agent"})'
     for: 1m
     labels:
       severity: critical
       signal: classes_loaded
-      metric: process_runtime_jvm_classes_current_loaded
+      metric: jvm_class_count
     annotations:
-      summary: '{{ $labels.service }} stopped emitting process_runtime_jvm_classes_current_loaded'
+      summary: '{{ $labels.service }} stopped emitting jvm_class_count'
       description: Signal 'classes_loaded' in the JVM metrics contract has no data. Dashboards and alerts built on it now show 'No data'.
   - alert: JvmUnexpectedMetric
-    expr: label_replace(group by (__name__, service) ({job="otel-agent", __name__=~".*jvm.*", __name__!~"process_runtime_jvm_buffer_count|process_runtime_jvm_buffer_limit_bytes|process_runtime_jvm_buffer_usage_bytes|process_runtime_jvm_classes_current_loaded|process_runtime_jvm_classes_loaded_total|process_runtime_jvm_classes_unloaded_total|process_runtime_jvm_cpu_utilization_ratio|process_runtime_jvm_gc_duration_seconds_bucket|process_runtime_jvm_gc_duration_seconds_count|process_runtime_jvm_gc_duration_seconds_sum|process_runtime_jvm_memory_committed_bytes|process_runtime_jvm_memory_init_bytes|process_runtime_jvm_memory_limit_bytes|process_runtime_jvm_memory_usage_after_last_gc_bytes|process_runtime_jvm_memory_usage_bytes|process_runtime_jvm_system_cpu_load_1m|process_runtime_jvm_system_cpu_utilization_ratio|process_runtime_jvm_threads_count"}),
+    expr: label_replace(group by (__name__, service) ({job="otel-agent", __name__=~".*jvm.*", __name__!~"jvm_class_count|jvm_class_loaded_total|jvm_class_unloaded_total|jvm_cpu_count|jvm_cpu_recent_utilization|jvm_cpu_time_seconds_total|jvm_gc_duration_seconds_bucket|jvm_gc_duration_seconds_count|jvm_gc_duration_seconds_sum|jvm_memory_committed_bytes|jvm_memory_limit_bytes|jvm_memory_used_after_last_gc_bytes|jvm_memory_used_bytes|jvm_thread_count"}),
       "metric", "$1", "__name__", "(.+)")
     for: 1m
     labels:
       severity: warning
     annotations:
-      summary: '{{ $labels.service }} emits {{ $labels.metric }}, which is not in the schema snapshot of agent 1.33.6'
+      summary: '{{ $labels.service }} emits {{ $labels.metric }}, which is not in the schema snapshot of agent 2.33.1'
       description: 'A new JVM metric name appeared. Often half of a rename: check JvmContractMetricMissing.'
 - name: jvm-schema-change
   rules:
   - alert: JvmMetricNameAppeared
-    expr: 'label_replace((group by (__name__, service) ({job="otel-agent", __name__=~".*jvm.*"})
+    expr: '(group by (metric, service) (label_replace({job="otel-agent", __name__=~".*jvm.*"}, "metric", "$1", "__name__", "(.+)"))
 
       unless
 
-      group by (__name__, service) ({job="otel-agent", __name__=~".*jvm.*"} offset 10m))
+      group by (metric, service) (label_replace({job="otel-agent", __name__=~".*jvm.*"} offset 10m, "metric", "$1", "__name__", "(.+)")))
 
-      and on (service) group by (service) (up{job="otel-agent"} offset 10m == 1), "metric", "$1", "__name__", "(.+)")'
+      and on (service) group by (service) (up{job="otel-agent"} offset 10m == 1)'
     labels:
       severity: info
     annotations:
       summary: New JVM metric {{ $labels.metric }} on {{ $labels.service }} (not there 10m ago)
   - alert: JvmMetricNameDisappeared
-    expr: 'label_replace((group by (__name__, service) ({job="otel-agent", __name__=~".*jvm.*"} offset 10m)
+    expr: '(group by (metric, service) (label_replace({job="otel-agent", __name__=~".*jvm.*"} offset 10m, "metric", "$1", "__name__", "(.+)"))
 
       unless
 
-      group by (__name__, service) ({job="otel-agent", __name__=~".*jvm.*"}))
+      group by (metric, service) (label_replace({job="otel-agent", __name__=~".*jvm.*"}, "metric", "$1", "__name__", "(.+)")))
 
-      and on (service) group by (service) (up{job="otel-agent"} == 1), "metric", "$1", "__name__", "(.+)")'
+      and on (service) group by (service) (up{job="otel-agent"} == 1)'
     labels:
       severity: warning
     annotations:
       summary: JVM metric {{ $labels.metric }} on {{ $labels.service }} disappeared in the last 10m
   - alert: JvmMetricCountChanged
-    expr: 'count by (service) (group by (__name__, service) ({job="otel-agent", __name__=~".*jvm.*"}))
+    expr: 'count by (service) (group by (metric, service) (label_replace({job="otel-agent", __name__=~".*jvm.*"}, "metric", "$1", "__name__", "(.+)")))
 
       != on (service)
 
-      count by (service) (group by (__name__, service) ({job="otel-agent", __name__=~".*jvm.*"} offset 10m))'
+      count by (service) (group by (metric, service) (label_replace({job="otel-agent", __name__=~".*jvm.*"} offset 10m, "metric", "$1", "__name__", "(.+)")))'
     labels:
       severity: warning
     annotations:

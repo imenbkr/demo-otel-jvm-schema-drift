@@ -1,0 +1,34 @@
+agent_version: 2.33.1
+captured_at: '2026-11-07T19:53:50Z'
+metrics:
+  jvm_class_count: []
+  jvm_class_loaded_total: []
+  jvm_class_unloaded_total: []
+  jvm_cpu_count: []
+  jvm_cpu_recent_utilization: []
+  jvm_cpu_time_seconds_total: []
+  jvm_gc_duration_seconds_bucket:
+  - jvm_gc_action
+  - jvm_gc_name
+  - le
+  jvm_gc_duration_seconds_count:
+  - jvm_gc_action
+  - jvm_gc_name
+  jvm_gc_duration_seconds_sum:
+  - jvm_gc_action
+  - jvm_gc_name
+  jvm_memory_committed_bytes:
+  - jvm_memory_pool_name
+  - jvm_memory_type
+  jvm_memory_limit_bytes:
+  - jvm_memory_pool_name
+  - jvm_memory_type
+  jvm_memory_used_after_last_gc_bytes:
+  - jvm_memory_pool_name
+  - jvm_memory_type
+  jvm_memory_used_bytes:
+  - jvm_memory_pool_name
+  - jvm_memory_type
+  jvm_thread_count:
+  - jvm_thread_daemon
+  - jvm_thread_state

@@ -5,21 +5,23 @@
 # are generated from this file (scripts/build_dashboard.py, scripts/build_rules.py), and CI
 # checks it against the schema the pinned agent version really emits (scripts/check_schema.py).
 job: otel-agent
+# Agent version this contract was verified against (its snapshot defines "expected" metric names)
+agent_version: 2.33.1
 signals:
   memory_used:
-    metric: process_runtime_jvm_memory_usage_bytes
-    labels: {type: type, pool: pool}
+    metric: jvm_memory_used_bytes
+    labels: {type: jvm_memory_type, pool: jvm_memory_pool_name}
   memory_limit:
-    metric: process_runtime_jvm_memory_limit_bytes
-    labels: {type: type, pool: pool}
+    metric: jvm_memory_limit_bytes
+    labels: {type: jvm_memory_type, pool: jvm_memory_pool_name}
   cpu_utilization:
-    metric: process_runtime_jvm_cpu_utilization_ratio
+    metric: jvm_cpu_recent_utilization
   gc_duration:
-    metric: process_runtime_jvm_gc_duration_seconds
+    metric: jvm_gc_duration_seconds
     histogram: true
-    labels: {gc: gc, action: action}
+    labels: {gc: jvm_gc_name, action: jvm_gc_action}
   threads:
-    metric: process_runtime_jvm_threads_count
-    labels: {daemon: daemon}
+    metric: jvm_thread_count
+    labels: {daemon: jvm_thread_daemon}
   classes_loaded:
-    metric: process_runtime_jvm_classes_current_loaded
+    metric: jvm_class_count

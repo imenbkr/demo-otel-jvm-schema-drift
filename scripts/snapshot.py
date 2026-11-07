@@ -16,7 +16,7 @@ import yaml
 from common import SNAPSHOTS, agent_version, snapshot_path
 
 # Labels added by Prometheus or the scrape config, not by the agent
-IGNORED = {"__name__", "job", "instance", "service", "otel_scope_name", "otel_scope_version"}
+IGNORED = {"__name__", "job", "instance", "service", "otel_scope_name", "otel_scope_version", "otel_scope_schema_url"}
 
 
 def main():
@@ -26,7 +26,10 @@ def main():
     args = parser.parse_args()
 
     selector = f'{{job="{args.job}", __name__=~".*jvm.*"}}'
-    url = f"{args.prometheus}/api/v1/series?" + urllib.parse.urlencode({"match[]": selector})
+    # Only series scraped in the last minute: older series belong to the previous agent version
+    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+    params = {"match[]": selector, "start": now - 60, "end": now}
+    url = f"{args.prometheus}/api/v1/series?" + urllib.parse.urlencode(params)
     series = json.load(urllib.request.urlopen(url))["data"]
 
     schema = {}

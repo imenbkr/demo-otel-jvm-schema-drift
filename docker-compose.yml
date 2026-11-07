@@ -6,6 +6,8 @@ x-agent-env: &agent-env
   # The agent serves its metrics in Prometheus format on :9464 (works the same in 1.x and 2.x)
   OTEL_METRICS_EXPORTER: prometheus
   OTEL_EXPORTER_PROMETHEUS_PORT: "9464"
+  # 1.x listened on all interfaces; 2.x listens on localhost only, which Prometheus can't reach
+  OTEL_EXPORTER_PROMETHEUS_HOST: "0.0.0.0"
   OTEL_TRACES_EXPORTER: none
   OTEL_LOGS_EXPORTER: none
   # Only the agent's own JVM runtime metrics, not Spring's Micrometer metrics bridged through it

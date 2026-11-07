@@ -12,7 +12,7 @@ import argparse
 
 import yaml
 
-from common import ROOT, agent_version, load_contract, load_snapshot, probe_name
+from common import ROOT, load_contract, load_snapshot, probe_name
 
 OUT = ROOT / "prometheus" / "rules" / "jvm-schema.yml"
 
@@ -70,21 +70,24 @@ def contract_rules(contract, snapshot):
 
 
 def change_rules(job, window):
-    names = f'group by (__name__, service) ({{job="{job}", __name__=~".*jvm.*"}})'
-    names_before = f'group by (__name__, service) ({{job="{job}", __name__=~".*jvm.*"}} offset {window})'
+    # Binary operators (unless, and) ignore __name__ when matching series, so the metric name
+    # is first copied into a regular `metric` label that the comparison can see.
+    selector = f'{{job="{job}", __name__=~".*jvm.*"}}'
+    names = f'group by (metric, service) ({as_metric_label(selector)})'
+    names_before = f'group by (metric, service) ({as_metric_label(selector + " offset " + window)})'
     # Only compare when the service was actually scraped at both points in time
     up_before = f'group by (service) (up{{job="{job}"}} offset {window} == 1)'
     up_now = f'group by (service) (up{{job="{job}"}} == 1)'
     return [
         {
             "alert": "JvmMetricNameAppeared",
-            "expr": as_metric_label(f"({names}\nunless\n{names_before})\nand on (service) {up_before}"),
+            "expr": f"({names}\nunless\n{names_before})\nand on (service) {up_before}",
             "labels": {"severity": "info"},
             "annotations": {"summary": f"New JVM metric {{{{ $labels.metric }}}} on {{{{ $labels.service }}}} (not there {window} ago)"},
         },
         {
             "alert": "JvmMetricNameDisappeared",
-            "expr": as_metric_label(f"({names_before}\nunless\n{names})\nand on (service) {up_now}"),
+            "expr": f"({names_before}\nunless\n{names})\nand on (service) {up_now}",
             "labels": {"severity": "warning"},
             "annotations": {"summary": f"JVM metric {{{{ $labels.metric }}}} on {{{{ $labels.service }}}} disappeared in the last {window}"},
         },
@@ -104,7 +107,7 @@ def main():
     args = parser.parse_args()
 
     contract = load_contract()
-    snapshot = load_snapshot(agent_version())
+    snapshot = load_snapshot(contract["agent_version"])
     rules = {"groups": [
         {"name": "jvm-schema-contract", "rules": contract_rules(contract, snapshot)},
         {"name": "jvm-schema-change", "rules": change_rules(contract["job"], args.window)},

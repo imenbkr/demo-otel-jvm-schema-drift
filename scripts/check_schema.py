@@ -17,9 +17,29 @@ import sys
 from common import agent_version, load_contract, load_snapshot, probe_name, series_names, snapshot_path, ROOT
 
 
+# Renames from the OpenTelemetry JVM semantic conventions (agent 1.x -> 2.x), Prometheus spelling
+KNOWN_RENAMES = {
+    "process_runtime_jvm_memory_usage_bytes": "jvm_memory_used_bytes",
+    "process_runtime_jvm_memory_committed_bytes": "jvm_memory_committed_bytes",
+    "process_runtime_jvm_memory_limit_bytes": "jvm_memory_limit_bytes",
+    "process_runtime_jvm_memory_usage_after_last_gc_bytes": "jvm_memory_used_after_last_gc_bytes",
+    "process_runtime_jvm_gc_duration_seconds": "jvm_gc_duration_seconds",
+    "process_runtime_jvm_threads_count": "jvm_thread_count",
+    "process_runtime_jvm_classes_loaded_total": "jvm_class_loaded_total",
+    "process_runtime_jvm_classes_unloaded_total": "jvm_class_unloaded_total",
+    "process_runtime_jvm_classes_current_loaded": "jvm_class_count",
+    "process_runtime_jvm_cpu_utilization_ratio": "jvm_cpu_recent_utilization",
+}
+
+
 def closest(name, candidates):
     """Best guess for what a missing metric was renamed to."""
-    # Compare without the 1.x prefix so process_runtime_jvm_threads_count ~ jvm_thread_count
+    for old, new in KNOWN_RENAMES.items():
+        if name.startswith(old):
+            renamed = new + name[len(old):]  # keep _count / _sum / _bucket
+            if renamed in candidates:
+                return renamed
+    # Otherwise compare without the 1.x prefix so process_runtime_jvm_x ~ jvm_x
     key = name.replace("process_runtime_", "")
     scored = sorted(candidates, key=lambda c: difflib.SequenceMatcher(None, key, c).ratio(), reverse=True)
     return scored[0] if scored and difflib.SequenceMatcher(None, key, scored[0]).ratio() > 0.6 else None
@@ -32,37 +52,45 @@ def main():
 
     version = agent_version()
     snapshot = load_snapshot(version)
-    problems = []
     if snapshot is None:
-        problems.append((".env", f"no schema snapshot for agent {version}: deploy it to a test environment and run "
-                                 f"`python scripts/snapshot.py` to create {snapshot_path(version).relative_to(ROOT)}"))
+        problems = [(".env", f"no schema snapshot for agent {version}: deploy it to a test environment and run "
+                             f"`python scripts/snapshot.py` to create {snapshot_path(version).relative_to(ROOT)}")]
     else:
-        known = snapshot["metrics"]
-        new_names = sorted(set(known))
-
         used = json.load(open(args.dashboard_metrics))["metricsUsed"]
-        for metric in sorted(m for m in used if "jvm" in m and m not in known):
-            hint = closest(metric, new_names)
-            problems.append(("grafana/dashboards", f"dashboards query {metric}, which agent {version} does not emit"
-                                                   + (f" (renamed to {hint}?)" if hint else "")))
+        problems = check_dashboards(used, snapshot["metrics"], version) + check_contract(snapshot["metrics"], version)
+    report_and_exit(problems, version)
 
-        for signal_name, signal in load_contract()["signals"].items():
-            for metric in series_names(signal):
-                if metric.endswith("_bucket") and metric not in known:
-                    continue  # histogram buckets are optional for our dashboards
-                if metric not in known:
-                    hint = closest(metric, new_names)
-                    problems.append(("contract/jvm-metrics.yaml",
-                                     f"signal '{signal_name}': {metric} is not emitted by agent {version}"
-                                     + (f" (renamed to {hint}?)" if hint else "")))
-            probe = probe_name(signal)
-            if probe in known:
-                for logical, label in (signal.get("labels") or {}).items():
-                    if label not in known[probe]:
-                        problems.append(("contract/jvm-metrics.yaml",
-                                         f"signal '{signal_name}': {probe} has no label '{label}' in agent {version} "
-                                         f"(labels: {', '.join(known[probe])})"))
 
+def renamed_hint(metric, known):
+    hint = closest(metric, sorted(known))
+    return f" (renamed to {hint}?)" if hint else ""
+
+
+def check_dashboards(used, known, version):
+    """Every JVM metric a dashboard queries must exist in the new schema."""
+    return [("grafana/dashboards", f"dashboards query {metric}, which agent {version} does not emit"
+             + renamed_hint(metric, known))
+            for metric in sorted(m for m in used if "jvm" in m and m not in known)]
+
+
+def check_contract(known, version):
+    """Every contract signal must exist in the new schema, with the labels the dashboards use."""
+    problems = []
+    for signal_name, signal in load_contract()["signals"].items():
+        # histogram buckets are optional for our dashboards
+        for metric in (m for m in series_names(signal) if m not in known and not m.endswith("_bucket")):
+            problems.append(("contract/jvm-metrics.yaml", f"signal '{signal_name}': {metric} is not emitted by "
+                             f"agent {version}" + renamed_hint(metric, known)))
+        probe = probe_name(signal)
+        missing_labels = [label for label in (signal.get("labels") or {}).values()
+                          if probe in known and label not in known[probe]]
+        for label in missing_labels:
+            problems.append(("contract/jvm-metrics.yaml", f"signal '{signal_name}': {probe} has no label '{label}' "
+                             f"in agent {version} (labels: {', '.join(known[probe])})"))
+    return problems
+
+
+def report_and_exit(problems, version):
     report = [f"## JVM metric schema check (agent {version})", ""]
     if problems:
         report += [f"**{len(problems)} problem(s)**: dashboards or alerts would show 'No data' after this deploy.", ""]
