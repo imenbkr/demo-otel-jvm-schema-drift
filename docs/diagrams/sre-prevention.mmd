@@ -1,0 +1,23 @@
+flowchart TB
+  subgraph ship["Every agent upgrade"]
+    direction LR
+    pr["Renovate PR<br/>pinned version bump"]
+    notes["Read release notes<br/>renamed · breaking"]
+    ci["CI gate<br/>dashboards + alerts<br/>vs new snapshot"]:::gate
+    stg["Staging deploy<br/>capture snapshot"]:::gate
+    canary["Production canary<br/>one service"]:::gate
+    all["Full rollout"]:::ok
+    pr --> notes --> ci --> stg --> canary --> all
+    stg -.->|snapshot| ci
+  end
+  subgraph mon["Monitor the monitoring"]
+    direction LR
+    m1["Critical metric absent"]
+    m2["Set of metric names changed"]
+    m3["Scrape target down"]
+    m1 ~~~ m2 ~~~ m3
+  end
+  ship ~~~ mon
+
+  classDef gate fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
+  classDef ok fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b

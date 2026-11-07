@@ -136,9 +136,144 @@ flowchart TB
   class r2,r3,drift run
 ```
 
-![Schema drift dashboard after the upgrade](docs/images/04-schema-drift-red.jpg)
+## Demo walkthrough
 
-![CI gate output after recording the 2.33.1 schema](docs/images/11-ci-gate-2-renamed-metrics.jpg)
+What happened when the agent was upgraded from 1.33.6 to 2.33.1, step by step.
+
+```mermaid
+flowchart TB
+  subgraph row1["Break"]
+    direction LR
+    s1["① Baseline<br/>agent 1.33.6<br/>dashboards + alerts green"]:::ok
+    s2["② Bump .env to 2.33.1<br/>CI gate ✗<br/>no snapshot for 2.33.1"]:::bad
+    s3["③ Deploy 2.33.1<br/>targets down<br/>exporter on localhost only"]:::bad
+    s4["④ Fix exporter host<br/>dashboards blank<br/>24 missing · 56 unexpected<br/>18 → 14 names per service"]:::bad
+    s1 --> s2 --> s3 --> s4
+  end
+  subgraph row2["Detect and fix"]
+    direction LR
+    s5["⑤ Snapshot 2.33.1<br/>CI gate ✗<br/>14 renamed metrics"]:::bad
+    s6["⑥ Rename metrics in contract<br/>CI gate ✗ 7 renamed labels<br/>16 label-missing alerts"]:::warn
+    s7["⑦ Rename labels<br/>CI gate ✓<br/>dashboards back, no alerts"]:::ok
+    s5 --> s6 --> s7
+  end
+  row1 --> row2
+
+  classDef ok fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
+  classDef bad fill:#fce8e6,stroke:#d93025,color:#5b0f0a
+  classDef warn fill:#fef7e0,stroke:#f9ab00,color:#4a3500
+```
+
+**① Baseline, agent 1.33.6.** JVM dashboard populated, schema-drift dashboard green.
+
+![JVM overview on agent 1.33.6](docs/images/01-jvm-overview-agent-1.x.jpg)
+![Schema drift dashboard, all green](docs/images/02-schema-drift-green.jpg)
+
+**② Bump `.env` to 2.33.1.** The CI gate refuses: nobody has recorded what 2.33.1 emits yet.
+
+![CI gate: no snapshot for 2.33.1](docs/images/10-ci-gate-1-no-snapshot.jpg)
+
+**③–④ Deploy 2.33.1.** First the scrape targets go down (the 2.x exporter listens on `localhost` only). After
+`OTEL_EXPORTER_PROMETHEUS_HOST=0.0.0.0`, metrics flow again, but every JVM panel stops at the upgrade, with no error.
+The schema alerts fire: 24 contract metrics missing, 56 unexpected metrics, 18 → 14 metric names per service.
+
+![JVM overview after the upgrade: every line stops](docs/images/03-jvm-overview-after-upgrade.jpg)
+![Schema drift dashboard after the upgrade](docs/images/04-schema-drift-red.jpg)
+![Firing schema alerts in Prometheus](docs/images/05-prometheus-alerts.jpg)
+
+**⑤ Record the 2.33.1 schema (`make snapshot`).** The CI gate now lists every renamed metric and its likely new name.
+
+![CI gate: 14 renamed metrics](docs/images/11-ci-gate-2-renamed-metrics.jpg)
+
+**⑥ Rename the metrics in the contract only.** Half the dashboard comes back. Heap panels stay empty because they
+filter on `type`, which is now `jvm_memory_type`. The gate and the runtime alerts both point at the labels.
+
+![CI gate: 7 renamed labels](docs/images/12-ci-gate-3-renamed-labels.jpg)
+![JVM overview with metrics renamed but labels not](docs/images/06-jvm-overview-names-fixed-labels-broken.jpg)
+![Schema drift dashboard: label-missing alerts](docs/images/07-schema-drift-label-missing.jpg)
+
+**⑦ Rename the labels too.** Gate green, no schema alerts, dashboards back, including the history since the upgrade.
+
+![CI gate green](docs/images/13-ci-gate-4-green.jpg)
+![JVM overview fixed](docs/images/08-jvm-overview-fixed.jpg)
+![Schema drift dashboard green again](docs/images/09-schema-drift-green-again.jpg)
+
+## Fixing it in production
+
+**During the incident:** roll back the agent, or keep it and make queries accept both names (`new_metric or old_metric`).
+Then check that alerts on these metrics still evaluate.
+
+```mermaid
+flowchart TB
+  start["JVM panels show No data<br/>right after an agent upgrade"]:::bad
+  q{"Is the new agent<br/>version needed now?"}
+  rb["Roll back the agent<br/>old names return at once"]:::ok
+  dual["Keep the new agent<br/>make queries accept both names<br/>new_name or old_name"]:::ok
+  alerts["Check alerts on these metrics<br/>still evaluate<br/>(heap, GC, CPU)"]
+  plan["Plan the migration"]
+  start --> q
+  q -->|no| rb --> alerts
+  q -->|yes| dual --> alerts
+  alerts --> plan
+
+  classDef ok fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
+  classDef bad fill:#fce8e6,stroke:#d93025,color:#5b0f0a
+```
+
+**The migration:** bridge old and new names in the Collector, in Prometheus recording rules, or in the dashboards
+(this repo), and roll out with a canary.
+
+```mermaid
+flowchart TB
+  subgraph where["Where the old names can be kept alive"]
+    direction LR
+    app["Services on agent 2.x<br/>send new names"]
+    col["A · OTel Collector<br/>transform processor<br/>renames new → old"]:::opt
+    prom["Prometheus"]
+    rec["B · Recording rules<br/>copy new metric<br/>under the old name"]:::opt
+    graf["Grafana"]
+    q["C · Dashboards as code<br/>queries use new names<br/>(new or old during rollout)"]:::best
+    app --> col --> prom --> rec --> graf
+    q -.-> graf
+  end
+  subgraph roll["Rollout order"]
+    direction LR
+    r1["1 · Dashboards<br/>accept both names"] --> r2["2 · Upgrade one<br/>service (canary)"] --> r3["3 · Verify, migrate<br/>dashboards + alerts"] --> r4["4 · Upgrade<br/>the rest"] --> r5["5 · Remove<br/>fallbacks"]
+  end
+  where ~~~ roll
+
+  classDef opt fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
+  classDef best fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
+```
+
+**Prevention:** pinned versions, a CI gate against a staging snapshot, a production canary, and alerts on the
+monitoring itself.
+
+```mermaid
+flowchart TB
+  subgraph ship["Every agent upgrade"]
+    direction LR
+    pr["Renovate PR<br/>pinned version bump"]
+    notes["Read release notes<br/>renamed · breaking"]
+    ci["CI gate<br/>dashboards + alerts<br/>vs new snapshot"]:::gate
+    stg["Staging deploy<br/>capture snapshot"]:::gate
+    canary["Production canary<br/>one service"]:::gate
+    all["Full rollout"]:::ok
+    pr --> notes --> ci --> stg --> canary --> all
+    stg -.->|snapshot| ci
+  end
+  subgraph mon["Monitor the monitoring"]
+    direction LR
+    m1["Critical metric absent"]
+    m2["Set of metric names changed"]
+    m3["Scrape target down"]
+    m1 ~~~ m2 ~~~ m3
+  end
+  ship ~~~ mon
+
+  classDef gate fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
+  classDef ok fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
+```
 
 ## Run it
 

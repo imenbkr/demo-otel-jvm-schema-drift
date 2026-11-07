@@ -1,0 +1,20 @@
+flowchart TB
+  subgraph where["Where the old names can be kept alive"]
+    direction LR
+    app["Services on agent 2.x<br/>send new names"]
+    col["A · OTel Collector<br/>transform processor<br/>renames new → old"]:::opt
+    prom["Prometheus"]
+    rec["B · Recording rules<br/>copy new metric<br/>under the old name"]:::opt
+    graf["Grafana"]
+    q["C · Dashboards as code<br/>queries use new names<br/>(new or old during rollout)"]:::best
+    app --> col --> prom --> rec --> graf
+    q -.-> graf
+  end
+  subgraph roll["Rollout order"]
+    direction LR
+    r1["1 · Dashboards<br/>accept both names"] --> r2["2 · Upgrade one<br/>service (canary)"] --> r3["3 · Verify, migrate<br/>dashboards + alerts"] --> r4["4 · Upgrade<br/>the rest"] --> r5["5 · Remove<br/>fallbacks"]
+  end
+  where ~~~ roll
+
+  classDef opt fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
+  classDef best fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b

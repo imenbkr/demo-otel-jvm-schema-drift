@@ -1,0 +1,21 @@
+flowchart TB
+  subgraph row1["Break"]
+    direction LR
+    s1["① Baseline<br/>agent 1.33.6<br/>dashboards + alerts green"]:::ok
+    s2["② Bump .env to 2.33.1<br/>CI gate ✗<br/>no snapshot for 2.33.1"]:::bad
+    s3["③ Deploy 2.33.1<br/>targets down<br/>exporter on localhost only"]:::bad
+    s4["④ Fix exporter host<br/>dashboards blank<br/>24 missing · 56 unexpected<br/>18 → 14 names per service"]:::bad
+    s1 --> s2 --> s3 --> s4
+  end
+  subgraph row2["Detect and fix"]
+    direction LR
+    s5["⑤ Snapshot 2.33.1<br/>CI gate ✗<br/>14 renamed metrics"]:::bad
+    s6["⑥ Rename metrics in contract<br/>CI gate ✗ 7 renamed labels<br/>16 label-missing alerts"]:::warn
+    s7["⑦ Rename labels<br/>CI gate ✓<br/>dashboards back, no alerts"]:::ok
+    s5 --> s6 --> s7
+  end
+  row1 --> row2
+
+  classDef ok fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
+  classDef bad fill:#fce8e6,stroke:#d93025,color:#5b0f0a
+  classDef warn fill:#fef7e0,stroke:#f9ab00,color:#4a3500
