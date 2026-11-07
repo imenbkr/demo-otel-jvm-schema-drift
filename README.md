@@ -91,11 +91,18 @@ flowchart LR
 
 All captured from the running services: [contract/snapshots/](contract/snapshots/).
 
+**Old → new mapping.** Detection shows which names disappeared and which appeared, but not which replaces which.
+The CI gate takes that mapping from OpenTelemetry's official list: the
+[Java agent 2.0.0 release notes](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/tag/v2.0.0)
+("Stable JVM semantic conventions are now emitted") and the
+[JVM metrics semantic conventions](https://opentelemetry.io/docs/specs/semconv/runtime/jvm-metrics/).
+Name similarity is only a fallback for metrics that list doesn't cover.
+
 ## How it detects the change
 
 | When | Check | Catches |
 |---|---|---|
-| CI, before deploy | [`scripts/check_schema.py`](scripts/check_schema.py) + `mimirtool analyze dashboard` | dashboards or contract using metrics/labels the pinned agent does not emit, with the likely new name |
+| CI, before deploy | [`scripts/check_schema.py`](scripts/check_schema.py) + `mimirtool analyze dashboard` | dashboards or contract using metrics/labels the pinned agent does not emit, with the new name from the official rename list |
 | Runtime, with contract | `JvmContractMetricMissing`, `JvmContractLabelMissing`, `JvmUnexpectedMetric` | a contract metric or label with no data; metric names outside the schema snapshot |
 | Runtime, no contract | `JvmMetricNameAppeared`, `JvmMetricNameDisappeared`, `JvmMetricCountChanged` | any change in the set of JVM metric names compared with 10 minutes ago |
 

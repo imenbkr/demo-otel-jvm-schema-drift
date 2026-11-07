@@ -17,7 +17,10 @@ import sys
 from common import agent_version, load_contract, load_snapshot, probe_name, series_names, snapshot_path, ROOT
 
 
-# Renames from the OpenTelemetry JVM semantic conventions (agent 1.x -> 2.x), Prometheus spelling
+# Official renames, agent 1.x -> 2.x, in Prometheus spelling. Sources:
+#   https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/tag/v2.0.0
+#   https://opentelemetry.io/docs/specs/semconv/runtime/jvm-metrics/
+# Name similarity (below) is only a fallback for metrics not in this list.
 KNOWN_RENAMES = {
     "process_runtime_jvm_memory_usage_bytes": "jvm_memory_used_bytes",
     "process_runtime_jvm_memory_committed_bytes": "jvm_memory_committed_bytes",
