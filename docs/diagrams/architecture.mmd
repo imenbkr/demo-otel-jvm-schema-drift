@@ -1,0 +1,30 @@
+flowchart LR
+  k6["k6<br/>load test"] -->|HTTP| gw
+
+  subgraph app["Spring PetClinic Microservices (Docker Compose)"]
+    direction LR
+    gw["api-gateway<br/>☕ + OTel Java agent"]
+    subgraph svc["Business services"]
+      direction TB
+      cust["customers-service<br/>☕ + OTel Java agent"]
+      vis["visits-service<br/>☕ + OTel Java agent"]
+      vets["vets-service<br/>☕ + OTel Java agent"]
+    end
+    cfg["config-server"]
+    disc["discovery-server<br/>(Eureka)"]
+    gw --> cust & vis & vets
+  end
+
+  dl["otel-agent init container<br/>downloads the agent jar<br/>version from .env"] -->|"/agents volume<br/>-javaagent"| app
+  cfg -.config.-> app
+  disc -.service discovery.-> app
+
+  app -->|"scrape :9464/metrics<br/>every 15s"| prom["Prometheus<br/>stores JVM metrics<br/>evaluates schema-drift rules"]
+  prom -->|PromQL| graf["Grafana<br/>JVM overview<br/>JVM schema drift"]
+
+  classDef jvm fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
+  classDef obs fill:#fef3e0,stroke:#e37400,color:#4a2600
+  classDef infra fill:#f1f3f4,stroke:#80868b,color:#202124
+  class gw,cust,vis,vets jvm
+  class prom,graf obs
+  class cfg,disc,dl,k6 infra

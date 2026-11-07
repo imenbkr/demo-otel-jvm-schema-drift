@@ -1,0 +1,19 @@
+flowchart LR
+  subgraph jvm["One service container (JVM)"]
+    direction TB
+    code["Spring Boot app code"]
+    agent["OpenTelemetry Java agent<br/>attached with JAVA_TOOL_OPTIONS=-javaagent:...<br/>reads JVM runtime (memory, GC, threads, CPU)"]
+    exp["Prometheus exporter<br/>:9464/metrics"]
+    code -.runs in the same JVM.- agent
+    agent --> exp
+  end
+  exp -->|pull| prom["Prometheus"]
+  prom -->|"PromQL<br/>sum by (service) (jvm_memory_used_bytes{jvm_memory_type=&quot;heap&quot;})"| graf["Grafana panel<br/>Heap used"]
+
+  v1["Agent 1.33.6 emits<br/>process_runtime_jvm_memory_usage_bytes{type, pool}"]:::old
+  v2["Agent 2.33.1 emits<br/>jvm_memory_used_bytes{jvm_memory_type, jvm_memory_pool_name}"]:::new
+  v1 -.-> exp
+  v2 -.-> exp
+
+  classDef old fill:#fce8e6,stroke:#d93025,color:#5b0f0a
+  classDef new fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
