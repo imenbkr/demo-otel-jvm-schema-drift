@@ -7,7 +7,7 @@ those metrics stop evaluating. This repo reproduces that upgrade on
 and detects the change three ways: in CI before the deploy, at runtime against a contract,
 and at runtime with no contract at all.
 
-![JVM dashboard after the agent upgrade: every line stops at 20:43](docs/images/03-jvm-overview-after-upgrade.jpg)
+![JVM dashboard after the agent upgrade: every line stops at the 2.33.1 deploy marker](docs/images/03-jvm-overview-after-upgrade.jpg)
 
 ## Architecture
 
@@ -16,38 +16,41 @@ reads the JVM runtime (memory, GC, threads, CPU) and serves it in Prometheus for
 Prometheus scrapes it and evaluates the schema-drift rules; Grafana queries Prometheus.
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "16px", "primaryColor": "#ffffff", "primaryBorderColor": "#8c959f", "primaryTextColor": "#1f2328", "lineColor": "#6e7781", "clusterBkg": "#f6f8fa", "clusterBorder": "#d0d7de", "edgeLabelBackground": "#ffffff", "titleColor": "#57606a"}, "flowchart": {"curve": "basis", "nodeSpacing": 45, "rankSpacing": 55, "padding": 18}}}%%
 flowchart LR
-  k6["k6 load test"] -->|HTTP| gw
+  k6("<b>k6</b><br/>load test"):::infra -->|HTTP| gw
 
   subgraph app["Spring PetClinic"]
     direction LR
-    gw["api-gateway<br/>☕ + OTel Java agent"]
+    gw("<b>api-gateway</b><br/>☕ OTel Java agent"):::jvm
     subgraph svc["Business services"]
       direction TB
-      cust["customers-service<br/>☕ + OTel Java agent"]
-      vis["visits-service<br/>☕ + OTel Java agent"]
-      vets["vets-service<br/>☕ + OTel Java agent"]
+      cust("<b>customers-service</b><br/>☕ OTel Java agent"):::jvm
+      vis("<b>visits-service</b><br/>☕ OTel Java agent"):::jvm
+      vets("<b>vets-service</b><br/>☕ OTel Java agent"):::jvm
     end
     gw --> cust & vis & vets
   end
 
   subgraph support["Support: config, discovery, agent jar"]
     direction TB
-    cfg["config-server"]
-    disc["discovery-server (Eureka)"]
-    dl["otel-agent init<br/>downloads the agent jar<br/>(version from .env)"]
+    cfg("config-server"):::infra
+    disc("discovery-server<br/>(Eureka)"):::infra
+    dl("<b>otel-agent init</b><br/>downloads the agent jar<br/>version from .env"):::infra
   end
   support -.-> app
 
-  app -->|"scrape :9464/metrics<br/>every 15s"| prom["Prometheus<br/>JVM metrics +<br/>schema-drift rules"]
-  prom -->|PromQL| graf["Grafana<br/>JVM overview<br/>JVM schema drift"]
+  app -->|"scrape :9464/metrics<br/>every 15s"| prom("<b>Prometheus</b><br/>JVM metrics<br/>schema-drift rules"):::prom
+  prom -->|PromQL| graf("<b>Grafana</b><br/>JVM overview<br/>JVM schema drift"):::graf
 
-  classDef jvm fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
-  classDef obs fill:#fef3e0,stroke:#e37400,color:#4a2600
-  classDef infra fill:#f1f3f4,stroke:#80868b,color:#202124
-  class gw,cust,vis,vets jvm
-  class prom,graf obs
-  class cfg,disc,dl,k6 infra
+  classDef jvm fill:#eaf2ff,stroke:#2f6feb,stroke-width:2px,color:#0a3069
+  classDef prom fill:#fff0eb,stroke:#e6522c,stroke-width:2px,color:#5c1a06
+  classDef graf fill:#fff4e5,stroke:#f46800,stroke-width:2px,color:#5c2a00
+  classDef infra fill:#ffffff,stroke:#8c959f,stroke-width:1.5px,color:#24292f
+  classDef gate fill:#f3eeff,stroke:#8250df,stroke-width:2px,color:#3e1f79
+  classDef ok fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#0f3d1c
+  classDef bad fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#6e1a1f
+  classDef warn fill:#fff8c5,stroke:#bf8700,stroke-width:2px,color:#4d2d00
 ```
 
 ### From the agent to a Grafana panel
@@ -56,23 +59,30 @@ The upgrade changes only what the agent emits. Everything downstream (the scrape
 panel) keeps asking for the old names, which is why nothing errors.
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "16px", "primaryColor": "#ffffff", "primaryBorderColor": "#8c959f", "primaryTextColor": "#1f2328", "lineColor": "#6e7781", "clusterBkg": "#f6f8fa", "clusterBorder": "#d0d7de", "edgeLabelBackground": "#ffffff", "titleColor": "#57606a"}, "flowchart": {"curve": "basis", "nodeSpacing": 45, "rankSpacing": 55, "padding": 18}}}%%
 flowchart LR
   subgraph jvm["Service container"]
     direction TB
-    code["Spring Boot app"]
-    agent["OTel Java agent<br/>(-javaagent, same JVM)<br/>reads memory, GC,<br/>threads, CPU"]
-    exp["Prometheus exporter<br/>:9464/metrics"]
+    code("<b>Spring Boot app</b>"):::infra
+    agent("<b>OTel Java agent</b><br/>-javaagent, same JVM<br/>reads memory, GC,<br/>threads, CPU"):::jvm
+    exp("<b>Prometheus exporter</b><br/>:9464/metrics"):::jvm
     code -.- agent
     agent --> exp
   end
-  exp -->|pull| prom["Prometheus"]
-  prom -->|PromQL| graf["Grafana panel<br/>Heap used"]
+  exp -->|pull| prom("<b>Prometheus</b>"):::prom
+  prom -->|PromQL| graf("<b>Grafana panel</b><br/>Heap used"):::graf
 
-  exp -.->|"agent 1.33.6"| v1["process_runtime_jvm_memory_usage_bytes<br/>{type, pool}"]:::old
-  exp -.->|"agent 2.33.1"| v2["jvm_memory_used_bytes<br/>{jvm_memory_type, jvm_memory_pool_name}"]:::new
+  exp -.->|"agent 1.33.6"| v1("process_runtime_jvm_memory_usage_bytes<br/>{type, pool}"):::bad
+  exp -.->|"agent 2.33.1"| v2("jvm_memory_used_bytes<br/>{jvm_memory_type, jvm_memory_pool_name}"):::ok
 
-  classDef old fill:#fce8e6,stroke:#d93025,color:#5b0f0a
-  classDef new fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
+  classDef jvm fill:#eaf2ff,stroke:#2f6feb,stroke-width:2px,color:#0a3069
+  classDef prom fill:#fff0eb,stroke:#e6522c,stroke-width:2px,color:#5c1a06
+  classDef graf fill:#fff4e5,stroke:#f46800,stroke-width:2px,color:#5c2a00
+  classDef infra fill:#ffffff,stroke:#8c959f,stroke-width:1.5px,color:#24292f
+  classDef gate fill:#f3eeff,stroke:#8250df,stroke-width:2px,color:#3e1f79
+  classDef ok fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#0f3d1c
+  classDef bad fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#6e1a1f
+  classDef warn fill:#fff8c5,stroke:#bf8700,stroke-width:2px,color:#4d2d00
 ```
 
 ## What changes between agent 1.33.6 and 2.33.1
@@ -111,36 +121,41 @@ need to the metric and label names that currently carry it. Dashboards and alert
 from it, so fixing a rename is a change to that one file.
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "16px", "primaryColor": "#ffffff", "primaryBorderColor": "#8c959f", "primaryTextColor": "#1f2328", "lineColor": "#6e7781", "clusterBkg": "#f6f8fa", "clusterBorder": "#d0d7de", "edgeLabelBackground": "#ffffff", "titleColor": "#57606a"}, "flowchart": {"curve": "basis", "nodeSpacing": 45, "rankSpacing": 55, "padding": 18}}}%%
 flowchart TB
-  contract["contract/jvm-metrics.yaml<br/>signal → metric + label names"]
-  contract -->|build_dashboard.py| dash["Grafana dashboards"]
-  contract -->|build_rules.py| rules["Prometheus alert rules"]
+  contract("<b>contract/jvm-metrics.yaml</b><br/>signal → metric + label names"):::gate
+  contract -->|build_dashboard.py| dash("<b>Grafana dashboards</b>"):::graf
+  contract -->|build_rules.py| rules("<b>Prometheus alert rules</b>"):::prom
 
-  subgraph ci["① CI gate (make check)"]
+  subgraph ci["① CI gate · make check"]
     direction LR
-    mimir["mimirtool analyze dashboard<br/>metrics the dashboards query"]
-    snap["snapshots/otel-agent-#lt;version#gt;.yaml<br/>what the agent really emits"]
-    check["check_schema.py<br/>missing metric or label?<br/>→ likely new name"]
+    mimir("<b>mimirtool analyze</b><br/>metrics the dashboards query"):::gate
+    snap("<b>snapshot</b> otel-agent-#lt;version#gt;.yaml<br/>what the agent really emits"):::gate
+    check("<b>check_schema.py</b><br/>missing metric or label?<br/>→ new name, official list"):::gate
     mimir --> check
     snap --> check
   end
   dash --> mimir
   contract --> check
-  env[".env<br/>OTEL_AGENT_VERSION"] --> check
-  testprom["Prometheus (test env)"] -->|snapshot.py| snap
+  env("<b>.env</b><br/>OTEL_AGENT_VERSION"):::infra --> check
+  testprom("<b>Prometheus</b><br/>test environment"):::prom -->|snapshot.py| snap
 
-  subgraph rt["Runtime (Prometheus)"]
+  subgraph rt["Runtime · Prometheus"]
     direction LR
-    r2["② Contract rules<br/>JvmContractMetricMissing<br/>JvmContractLabelMissing<br/>JvmUnexpectedMetric"]
-    r3["③ Change rules, no contract<br/>JvmMetricNameAppeared<br/>JvmMetricNameDisappeared<br/>JvmMetricCountChanged"]
+    r2("<b>② Contract rules</b><br/>JvmContractMetricMissing<br/>JvmContractLabelMissing<br/>JvmUnexpectedMetric"):::prom
+    r3("<b>③ Change rules, no contract</b><br/>JvmMetricNameAppeared<br/>JvmMetricNameDisappeared<br/>JvmMetricCountChanged"):::prom
   end
   rules --> r2 & r3
-  r2 & r3 --> drift["Grafana: JVM schema drift"]
+  r2 & r3 --> drift("<b>Grafana</b><br/>JVM schema drift"):::graf
 
-  classDef gate fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
-  classDef run fill:#fef3e0,stroke:#e37400,color:#4a2600
-  class mimir,snap,check gate
-  class r2,r3,drift run
+  classDef jvm fill:#eaf2ff,stroke:#2f6feb,stroke-width:2px,color:#0a3069
+  classDef prom fill:#fff0eb,stroke:#e6522c,stroke-width:2px,color:#5c1a06
+  classDef graf fill:#fff4e5,stroke:#f46800,stroke-width:2px,color:#5c2a00
+  classDef infra fill:#ffffff,stroke:#8c959f,stroke-width:1.5px,color:#24292f
+  classDef gate fill:#f3eeff,stroke:#8250df,stroke-width:2px,color:#3e1f79
+  classDef ok fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#0f3d1c
+  classDef bad fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#6e1a1f
+  classDef warn fill:#fff8c5,stroke:#bf8700,stroke-width:2px,color:#4d2d00
 ```
 
 ## Demo walkthrough
@@ -148,27 +163,33 @@ flowchart TB
 What happened when the agent was upgraded from 1.33.6 to 2.33.1, step by step.
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "16px", "primaryColor": "#ffffff", "primaryBorderColor": "#8c959f", "primaryTextColor": "#1f2328", "lineColor": "#6e7781", "clusterBkg": "#f6f8fa", "clusterBorder": "#d0d7de", "edgeLabelBackground": "#ffffff", "titleColor": "#57606a"}, "flowchart": {"curve": "basis", "nodeSpacing": 45, "rankSpacing": 55, "padding": 18}}}%%
 flowchart TB
   subgraph row1["Break"]
     direction LR
-    s1["① Baseline<br/>agent 1.33.6<br/>dashboards + alerts green"]:::ok
-    s2["② Bump .env to 2.33.1<br/>CI gate ✗<br/>no snapshot for 2.33.1"]:::bad
-    s3["③ Deploy 2.33.1<br/>targets down<br/>exporter on localhost only"]:::bad
-    s4["④ Fix exporter host<br/>dashboards blank<br/>24 missing · 56 unexpected<br/>18 → 14 names per service"]:::bad
+    s1("<b>① Baseline</b><br/>agent 1.33.6<br/>dashboards + alerts green"):::ok
+    s2("<b>② Bump .env to 2.33.1</b><br/>CI gate ✗<br/>no snapshot for 2.33.1"):::bad
+    s3("<b>③ Deploy 2.33.1</b><br/>targets down<br/>exporter on localhost only"):::bad
+    s4("<b>④ Fix exporter host</b><br/>dashboards blank<br/>24 missing · 56 unexpected<br/>18 → 14 names per service"):::bad
     s1 --> s2 --> s3 --> s4
   end
   subgraph row2["Detect and fix"]
     direction LR
-    s5["⑤ Snapshot 2.33.1<br/>CI gate ✗<br/>14 renamed metrics"]:::bad
-    s6["⑥ Rename metrics in contract<br/>CI gate ✗ 7 renamed labels<br/>16 label-missing alerts"]:::warn
-    s7["⑦ Rename labels<br/>CI gate ✓<br/>dashboards back, no alerts"]:::ok
+    s5("<b>⑤ Snapshot 2.33.1</b><br/>CI gate ✗<br/>14 renamed metrics"):::bad
+    s6("<b>⑥ Rename metrics</b><br/>CI gate ✗ 7 renamed labels<br/>16 label-missing alerts"):::warn
+    s7("<b>⑦ Rename labels</b><br/>CI gate ✓<br/>dashboards back, no alerts"):::ok
     s5 --> s6 --> s7
   end
   row1 --> row2
 
-  classDef ok fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
-  classDef bad fill:#fce8e6,stroke:#d93025,color:#5b0f0a
-  classDef warn fill:#fef7e0,stroke:#f9ab00,color:#4a3500
+  classDef jvm fill:#eaf2ff,stroke:#2f6feb,stroke-width:2px,color:#0a3069
+  classDef prom fill:#fff0eb,stroke:#e6522c,stroke-width:2px,color:#5c1a06
+  classDef graf fill:#fff4e5,stroke:#f46800,stroke-width:2px,color:#5c2a00
+  classDef infra fill:#ffffff,stroke:#8c959f,stroke-width:1.5px,color:#24292f
+  classDef gate fill:#f3eeff,stroke:#8250df,stroke-width:2px,color:#3e1f79
+  classDef ok fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#0f3d1c
+  classDef bad fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#6e1a1f
+  classDef warn fill:#fff8c5,stroke:#bf8700,stroke-width:2px,color:#4d2d00
 ```
 
 **① Baseline, agent 1.33.6.** JVM dashboard populated, schema-drift dashboard green.
@@ -211,75 +232,96 @@ filter on `type`, which is now `jvm_memory_type`. The gate and the runtime alert
 Then check that alerts on these metrics still evaluate.
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "16px", "primaryColor": "#ffffff", "primaryBorderColor": "#8c959f", "primaryTextColor": "#1f2328", "lineColor": "#6e7781", "clusterBkg": "#f6f8fa", "clusterBorder": "#d0d7de", "edgeLabelBackground": "#ffffff", "titleColor": "#57606a"}, "flowchart": {"curve": "basis", "nodeSpacing": 45, "rankSpacing": 55, "padding": 18}}}%%
 flowchart TB
-  start["JVM panels show No data<br/>right after an agent upgrade"]:::bad
-  q{"Is the new agent<br/>version needed now?"}
-  rb["Roll back the agent<br/>old names return at once"]:::ok
-  dual["Keep the new agent<br/>make queries accept both names<br/>new_name or old_name"]:::ok
-  alerts["Check alerts on these metrics<br/>still evaluate<br/>(heap, GC, CPU)"]
-  plan["Plan the migration"]
+  start("<b>JVM panels show No data</b><br/>right after an agent upgrade"):::bad
+  q{"Is the new agent<br/>needed now?"}
+  rb("<b>Roll back the agent</b><br/>old names return at once"):::ok
+  dual("<b>Keep the new agent</b><br/>queries accept both names<br/>new_name or old_name"):::ok
+  alerts("<b>Check the alerts</b><br/>heap, GC, CPU rules<br/>still evaluate?"):::warn
+  plan("<b>Plan the migration</b>"):::infra
   start --> q
   q -->|no| rb --> alerts
   q -->|yes| dual --> alerts
   alerts --> plan
 
-  classDef ok fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
-  classDef bad fill:#fce8e6,stroke:#d93025,color:#5b0f0a
+  classDef jvm fill:#eaf2ff,stroke:#2f6feb,stroke-width:2px,color:#0a3069
+  classDef prom fill:#fff0eb,stroke:#e6522c,stroke-width:2px,color:#5c1a06
+  classDef graf fill:#fff4e5,stroke:#f46800,stroke-width:2px,color:#5c2a00
+  classDef infra fill:#ffffff,stroke:#8c959f,stroke-width:1.5px,color:#24292f
+  classDef gate fill:#f3eeff,stroke:#8250df,stroke-width:2px,color:#3e1f79
+  classDef ok fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#0f3d1c
+  classDef bad fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#6e1a1f
+  classDef warn fill:#fff8c5,stroke:#bf8700,stroke-width:2px,color:#4d2d00
 ```
 
 **The migration:** bridge old and new names in the Collector, in Prometheus recording rules, or in the dashboards
 (this repo), and roll out with a canary.
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "16px", "primaryColor": "#ffffff", "primaryBorderColor": "#8c959f", "primaryTextColor": "#1f2328", "lineColor": "#6e7781", "clusterBkg": "#f6f8fa", "clusterBorder": "#d0d7de", "edgeLabelBackground": "#ffffff", "titleColor": "#57606a"}, "flowchart": {"curve": "basis", "nodeSpacing": 45, "rankSpacing": 55, "padding": 18}}}%%
 flowchart TB
   subgraph where["Where the old names can be kept alive"]
     direction LR
-    app["Services on agent 2.x<br/>send new names"]
-    col["A · OTel Collector<br/>transform processor<br/>renames new → old"]:::opt
-    prom["Prometheus"]
-    rec["B · Recording rules<br/>copy new metric<br/>under the old name"]:::opt
-    graf["Grafana"]
-    q["C · Dashboards as code<br/>queries use new names<br/>(new or old during rollout)"]:::best
+    app("<b>Services on agent 2.x</b><br/>send new names"):::jvm
+    col("<b>A · OTel Collector</b><br/>transform processor<br/>renames new → old"):::gate
+    prom("<b>Prometheus</b>"):::prom
+    rec("<b>B · Recording rules</b><br/>copy new metric<br/>under the old name"):::prom
+    graf("<b>Grafana</b>"):::graf
+    q("<b>C · Dashboards as code</b><br/>queries use new names<br/>new or old during rollout"):::ok
     app --> col --> prom --> rec --> graf
     q -.-> graf
   end
   subgraph roll["Rollout order"]
     direction LR
-    r1["1 · Dashboards<br/>accept both names"] --> r2["2 · Upgrade one<br/>service (canary)"] --> r3["3 · Verify, migrate<br/>dashboards + alerts"] --> r4["4 · Upgrade<br/>the rest"] --> r5["5 · Remove<br/>fallbacks"]
+    r1("<b>1</b> · Dashboards<br/>accept both names"):::infra --> r2("<b>2</b> · Upgrade one<br/>service, canary"):::infra --> r3("<b>3</b> · Verify, migrate<br/>dashboards + alerts"):::infra --> r4("<b>4</b> · Upgrade<br/>the rest"):::infra --> r5("<b>5</b> · Remove<br/>fallbacks"):::ok
   end
   where ~~~ roll
 
-  classDef opt fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
-  classDef best fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
+  classDef jvm fill:#eaf2ff,stroke:#2f6feb,stroke-width:2px,color:#0a3069
+  classDef prom fill:#fff0eb,stroke:#e6522c,stroke-width:2px,color:#5c1a06
+  classDef graf fill:#fff4e5,stroke:#f46800,stroke-width:2px,color:#5c2a00
+  classDef infra fill:#ffffff,stroke:#8c959f,stroke-width:1.5px,color:#24292f
+  classDef gate fill:#f3eeff,stroke:#8250df,stroke-width:2px,color:#3e1f79
+  classDef ok fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#0f3d1c
+  classDef bad fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#6e1a1f
+  classDef warn fill:#fff8c5,stroke:#bf8700,stroke-width:2px,color:#4d2d00
 ```
 
 **Prevention:** pinned versions, a CI gate against a staging snapshot, a production canary, and alerts on the
 monitoring itself.
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "16px", "primaryColor": "#ffffff", "primaryBorderColor": "#8c959f", "primaryTextColor": "#1f2328", "lineColor": "#6e7781", "clusterBkg": "#f6f8fa", "clusterBorder": "#d0d7de", "edgeLabelBackground": "#ffffff", "titleColor": "#57606a"}, "flowchart": {"curve": "basis", "nodeSpacing": 45, "rankSpacing": 55, "padding": 18}}}%%
 flowchart TB
   subgraph ship["Every agent upgrade"]
     direction LR
-    pr["Renovate PR<br/>pinned version bump"]
-    notes["Read release notes<br/>renamed · breaking"]
-    ci["CI gate<br/>dashboards + alerts<br/>vs new snapshot"]:::gate
-    stg["Staging deploy<br/>capture snapshot"]:::gate
-    canary["Production canary<br/>one service"]:::gate
-    all["Full rollout"]:::ok
+    pr("<b>Renovate PR</b><br/>pinned version bump"):::infra
+    notes("<b>Release notes</b><br/>renamed · breaking"):::infra
+    ci("<b>CI gate</b><br/>dashboards + alerts<br/>vs new snapshot"):::gate
+    stg("<b>Staging deploy</b><br/>capture snapshot"):::gate
+    canary("<b>Production canary</b><br/>one service"):::gate
+    all("<b>Full rollout</b>"):::ok
     pr --> notes --> ci --> stg --> canary --> all
     stg -.->|snapshot| ci
   end
   subgraph mon["Monitor the monitoring"]
     direction LR
-    m1["Critical metric absent"]
-    m2["Set of metric names changed"]
-    m3["Scrape target down"]
+    m1("Critical metric absent"):::prom
+    m2("Set of metric names changed"):::prom
+    m3("Scrape target down"):::prom
     m1 ~~~ m2 ~~~ m3
   end
   ship ~~~ mon
 
-  classDef gate fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
-  classDef ok fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
+  classDef jvm fill:#eaf2ff,stroke:#2f6feb,stroke-width:2px,color:#0a3069
+  classDef prom fill:#fff0eb,stroke:#e6522c,stroke-width:2px,color:#5c1a06
+  classDef graf fill:#fff4e5,stroke:#f46800,stroke-width:2px,color:#5c2a00
+  classDef infra fill:#ffffff,stroke:#8c959f,stroke-width:1.5px,color:#24292f
+  classDef gate fill:#f3eeff,stroke:#8250df,stroke-width:2px,color:#3e1f79
+  classDef ok fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#0f3d1c
+  classDef bad fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#6e1a1f
+  classDef warn fill:#fff8c5,stroke:#bf8700,stroke-width:2px,color:#4d2d00
 ```
 
 ## Run it
@@ -287,7 +329,8 @@ flowchart TB
 Needs Docker and Python 3 with PyYAML. Host ports: app 8180, Prometheus 9190, Grafana 3100.
 
 ```bash
-make up          # PetClinic + agent from .env, Prometheus, Grafana, k6 traffic
+make up          # PetClinic + agent from .env, Prometheus, Grafana, k6 traffic,
+                 # and a deploy marker (Grafana annotation) with the agent version
 ```
 
 Grafana: http://localhost:3100 (dashboards *PetClinic · JVM overview* and *PetClinic · JVM schema drift*).

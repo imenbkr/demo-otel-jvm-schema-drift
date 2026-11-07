@@ -1,21 +1,27 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "16px", "primaryColor": "#ffffff", "primaryBorderColor": "#8c959f", "primaryTextColor": "#1f2328", "lineColor": "#6e7781", "clusterBkg": "#f6f8fa", "clusterBorder": "#d0d7de", "edgeLabelBackground": "#ffffff", "titleColor": "#57606a"}, "flowchart": {"curve": "basis", "nodeSpacing": 45, "rankSpacing": 55, "padding": 18}}}%%
 flowchart TB
   subgraph row1["Break"]
     direction LR
-    s1["① Baseline<br/>agent 1.33.6<br/>dashboards + alerts green"]:::ok
-    s2["② Bump .env to 2.33.1<br/>CI gate ✗<br/>no snapshot for 2.33.1"]:::bad
-    s3["③ Deploy 2.33.1<br/>targets down<br/>exporter on localhost only"]:::bad
-    s4["④ Fix exporter host<br/>dashboards blank<br/>24 missing · 56 unexpected<br/>18 → 14 names per service"]:::bad
+    s1("<b>① Baseline</b><br/>agent 1.33.6<br/>dashboards + alerts green"):::ok
+    s2("<b>② Bump .env to 2.33.1</b><br/>CI gate ✗<br/>no snapshot for 2.33.1"):::bad
+    s3("<b>③ Deploy 2.33.1</b><br/>targets down<br/>exporter on localhost only"):::bad
+    s4("<b>④ Fix exporter host</b><br/>dashboards blank<br/>24 missing · 56 unexpected<br/>18 → 14 names per service"):::bad
     s1 --> s2 --> s3 --> s4
   end
   subgraph row2["Detect and fix"]
     direction LR
-    s5["⑤ Snapshot 2.33.1<br/>CI gate ✗<br/>14 renamed metrics"]:::bad
-    s6["⑥ Rename metrics in contract<br/>CI gate ✗ 7 renamed labels<br/>16 label-missing alerts"]:::warn
-    s7["⑦ Rename labels<br/>CI gate ✓<br/>dashboards back, no alerts"]:::ok
+    s5("<b>⑤ Snapshot 2.33.1</b><br/>CI gate ✗<br/>14 renamed metrics"):::bad
+    s6("<b>⑥ Rename metrics</b><br/>CI gate ✗ 7 renamed labels<br/>16 label-missing alerts"):::warn
+    s7("<b>⑦ Rename labels</b><br/>CI gate ✓<br/>dashboards back, no alerts"):::ok
     s5 --> s6 --> s7
   end
   row1 --> row2
 
-  classDef ok fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
-  classDef bad fill:#fce8e6,stroke:#d93025,color:#5b0f0a
-  classDef warn fill:#fef7e0,stroke:#f9ab00,color:#4a3500
+  classDef jvm fill:#eaf2ff,stroke:#2f6feb,stroke-width:2px,color:#0a3069
+  classDef prom fill:#fff0eb,stroke:#e6522c,stroke-width:2px,color:#5c1a06
+  classDef graf fill:#fff4e5,stroke:#f46800,stroke-width:2px,color:#5c2a00
+  classDef infra fill:#ffffff,stroke:#8c959f,stroke-width:1.5px,color:#24292f
+  classDef gate fill:#f3eeff,stroke:#8250df,stroke-width:2px,color:#3e1f79
+  classDef ok fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#0f3d1c
+  classDef bad fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#6e1a1f
+  classDef warn fill:#fff8c5,stroke:#bf8700,stroke-width:2px,color:#4d2d00

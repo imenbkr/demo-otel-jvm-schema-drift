@@ -1,17 +1,24 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "16px", "primaryColor": "#ffffff", "primaryBorderColor": "#8c959f", "primaryTextColor": "#1f2328", "lineColor": "#6e7781", "clusterBkg": "#f6f8fa", "clusterBorder": "#d0d7de", "edgeLabelBackground": "#ffffff", "titleColor": "#57606a"}, "flowchart": {"curve": "basis", "nodeSpacing": 45, "rankSpacing": 55, "padding": 18}}}%%
 flowchart LR
   subgraph jvm["Service container"]
     direction TB
-    code["Spring Boot app"]
-    agent["OTel Java agent<br/>(-javaagent, same JVM)<br/>reads memory, GC,<br/>threads, CPU"]
-    exp["Prometheus exporter<br/>:9464/metrics"]
+    code("<b>Spring Boot app</b>"):::infra
+    agent("<b>OTel Java agent</b><br/>-javaagent, same JVM<br/>reads memory, GC,<br/>threads, CPU"):::jvm
+    exp("<b>Prometheus exporter</b><br/>:9464/metrics"):::jvm
     code -.- agent
     agent --> exp
   end
-  exp -->|pull| prom["Prometheus"]
-  prom -->|PromQL| graf["Grafana panel<br/>Heap used"]
+  exp -->|pull| prom("<b>Prometheus</b>"):::prom
+  prom -->|PromQL| graf("<b>Grafana panel</b><br/>Heap used"):::graf
 
-  exp -.->|"agent 1.33.6"| v1["process_runtime_jvm_memory_usage_bytes<br/>{type, pool}"]:::old
-  exp -.->|"agent 2.33.1"| v2["jvm_memory_used_bytes<br/>{jvm_memory_type, jvm_memory_pool_name}"]:::new
+  exp -.->|"agent 1.33.6"| v1("process_runtime_jvm_memory_usage_bytes<br/>{type, pool}"):::bad
+  exp -.->|"agent 2.33.1"| v2("jvm_memory_used_bytes<br/>{jvm_memory_type, jvm_memory_pool_name}"):::ok
 
-  classDef old fill:#fce8e6,stroke:#d93025,color:#5b0f0a
-  classDef new fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
+  classDef jvm fill:#eaf2ff,stroke:#2f6feb,stroke-width:2px,color:#0a3069
+  classDef prom fill:#fff0eb,stroke:#e6522c,stroke-width:2px,color:#5c1a06
+  classDef graf fill:#fff4e5,stroke:#f46800,stroke-width:2px,color:#5c2a00
+  classDef infra fill:#ffffff,stroke:#8c959f,stroke-width:1.5px,color:#24292f
+  classDef gate fill:#f3eeff,stroke:#8250df,stroke-width:2px,color:#3e1f79
+  classDef ok fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#0f3d1c
+  classDef bad fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#6e1a1f
+  classDef warn fill:#fff8c5,stroke:#bf8700,stroke-width:2px,color:#4d2d00

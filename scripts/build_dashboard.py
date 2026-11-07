@@ -37,7 +37,16 @@ class Board:
     def dashboard(self, uid, title, description, time_from="now-1h"):
         return {"uid": uid, "title": title, "description": description, "tags": ["jvm", "schema-drift"],
                 "timezone": "browser", "schemaVersion": 41, "refresh": "15s",
-                "time": {"from": time_from, "to": "now"}, "panels": self.panels}
+                "time": {"from": time_from, "to": "now"}, "panels": self.panels,
+                "annotations": {"list": [DEPLOY_MARKERS]}}
+
+
+# Vertical markers for deploys: `make up` posts a Grafana annotation tagged "deploy"
+DEPLOY_MARKERS = {
+    "name": "Deploys", "enable": True, "iconColor": "#FF9830",
+    "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+    "target": {"type": "tags", "tags": ["deploy"], "limit": 100, "matchAny": True},
+}
 
 
 def q(expr, legend="{{service}}", **opts):

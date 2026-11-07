@@ -1,30 +1,35 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "16px", "primaryColor": "#ffffff", "primaryBorderColor": "#8c959f", "primaryTextColor": "#1f2328", "lineColor": "#6e7781", "clusterBkg": "#f6f8fa", "clusterBorder": "#d0d7de", "edgeLabelBackground": "#ffffff", "titleColor": "#57606a"}, "flowchart": {"curve": "basis", "nodeSpacing": 45, "rankSpacing": 55, "padding": 18}}}%%
 flowchart TB
-  contract["contract/jvm-metrics.yaml<br/>signal → metric + label names"]
-  contract -->|build_dashboard.py| dash["Grafana dashboards"]
-  contract -->|build_rules.py| rules["Prometheus alert rules"]
+  contract("<b>contract/jvm-metrics.yaml</b><br/>signal → metric + label names"):::gate
+  contract -->|build_dashboard.py| dash("<b>Grafana dashboards</b>"):::graf
+  contract -->|build_rules.py| rules("<b>Prometheus alert rules</b>"):::prom
 
-  subgraph ci["① CI gate (make check)"]
+  subgraph ci["① CI gate · make check"]
     direction LR
-    mimir["mimirtool analyze dashboard<br/>metrics the dashboards query"]
-    snap["snapshots/otel-agent-#lt;version#gt;.yaml<br/>what the agent really emits"]
-    check["check_schema.py<br/>missing metric or label?<br/>→ likely new name"]
+    mimir("<b>mimirtool analyze</b><br/>metrics the dashboards query"):::gate
+    snap("<b>snapshot</b> otel-agent-#lt;version#gt;.yaml<br/>what the agent really emits"):::gate
+    check("<b>check_schema.py</b><br/>missing metric or label?<br/>→ new name, official list"):::gate
     mimir --> check
     snap --> check
   end
   dash --> mimir
   contract --> check
-  env[".env<br/>OTEL_AGENT_VERSION"] --> check
-  testprom["Prometheus (test env)"] -->|snapshot.py| snap
+  env("<b>.env</b><br/>OTEL_AGENT_VERSION"):::infra --> check
+  testprom("<b>Prometheus</b><br/>test environment"):::prom -->|snapshot.py| snap
 
-  subgraph rt["Runtime (Prometheus)"]
+  subgraph rt["Runtime · Prometheus"]
     direction LR
-    r2["② Contract rules<br/>JvmContractMetricMissing<br/>JvmContractLabelMissing<br/>JvmUnexpectedMetric"]
-    r3["③ Change rules, no contract<br/>JvmMetricNameAppeared<br/>JvmMetricNameDisappeared<br/>JvmMetricCountChanged"]
+    r2("<b>② Contract rules</b><br/>JvmContractMetricMissing<br/>JvmContractLabelMissing<br/>JvmUnexpectedMetric"):::prom
+    r3("<b>③ Change rules, no contract</b><br/>JvmMetricNameAppeared<br/>JvmMetricNameDisappeared<br/>JvmMetricCountChanged"):::prom
   end
   rules --> r2 & r3
-  r2 & r3 --> drift["Grafana: JVM schema drift"]
+  r2 & r3 --> drift("<b>Grafana</b><br/>JVM schema drift"):::graf
 
-  classDef gate fill:#e8f0fe,stroke:#1a73e8,color:#0b2a5b
-  classDef run fill:#fef3e0,stroke:#e37400,color:#4a2600
-  class mimir,snap,check gate
-  class r2,r3,drift run
+  classDef jvm fill:#eaf2ff,stroke:#2f6feb,stroke-width:2px,color:#0a3069
+  classDef prom fill:#fff0eb,stroke:#e6522c,stroke-width:2px,color:#5c1a06
+  classDef graf fill:#fff4e5,stroke:#f46800,stroke-width:2px,color:#5c2a00
+  classDef infra fill:#ffffff,stroke:#8c959f,stroke-width:1.5px,color:#24292f
+  classDef gate fill:#f3eeff,stroke:#8250df,stroke-width:2px,color:#3e1f79
+  classDef ok fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#0f3d1c
+  classDef bad fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#6e1a1f
+  classDef warn fill:#fff8c5,stroke:#bf8700,stroke-width:2px,color:#4d2d00

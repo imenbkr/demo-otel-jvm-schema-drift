@@ -1,14 +1,21 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "16px", "primaryColor": "#ffffff", "primaryBorderColor": "#8c959f", "primaryTextColor": "#1f2328", "lineColor": "#6e7781", "clusterBkg": "#f6f8fa", "clusterBorder": "#d0d7de", "edgeLabelBackground": "#ffffff", "titleColor": "#57606a"}, "flowchart": {"curve": "basis", "nodeSpacing": 45, "rankSpacing": 55, "padding": 18}}}%%
 flowchart TB
-  start["JVM panels show No data<br/>right after an agent upgrade"]:::bad
-  q{"Is the new agent<br/>version needed now?"}
-  rb["Roll back the agent<br/>old names return at once"]:::ok
-  dual["Keep the new agent<br/>make queries accept both names<br/>new_name or old_name"]:::ok
-  alerts["Check alerts on these metrics<br/>still evaluate<br/>(heap, GC, CPU)"]
-  plan["Plan the migration"]
+  start("<b>JVM panels show No data</b><br/>right after an agent upgrade"):::bad
+  q{"Is the new agent<br/>needed now?"}
+  rb("<b>Roll back the agent</b><br/>old names return at once"):::ok
+  dual("<b>Keep the new agent</b><br/>queries accept both names<br/>new_name or old_name"):::ok
+  alerts("<b>Check the alerts</b><br/>heap, GC, CPU rules<br/>still evaluate?"):::warn
+  plan("<b>Plan the migration</b>"):::infra
   start --> q
   q -->|no| rb --> alerts
   q -->|yes| dual --> alerts
   alerts --> plan
 
-  classDef ok fill:#e6f4ea,stroke:#1e8e3e,color:#0d3d1b
-  classDef bad fill:#fce8e6,stroke:#d93025,color:#5b0f0a
+  classDef jvm fill:#eaf2ff,stroke:#2f6feb,stroke-width:2px,color:#0a3069
+  classDef prom fill:#fff0eb,stroke:#e6522c,stroke-width:2px,color:#5c1a06
+  classDef graf fill:#fff4e5,stroke:#f46800,stroke-width:2px,color:#5c2a00
+  classDef infra fill:#ffffff,stroke:#8c959f,stroke-width:1.5px,color:#24292f
+  classDef gate fill:#f3eeff,stroke:#8250df,stroke-width:2px,color:#3e1f79
+  classDef ok fill:#dafbe1,stroke:#1a7f37,stroke-width:2px,color:#0f3d1c
+  classDef bad fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#6e1a1f
+  classDef warn fill:#fff8c5,stroke:#bf8700,stroke-width:2px,color:#4d2d00

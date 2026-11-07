@@ -3,8 +3,14 @@ PROMTOOL  = docker run --rm -v $(CURDIR)/prometheus:/p:ro --entrypoint promtool 
 
 .PHONY: up down generate snapshot check reload
 
-up:            ## start the stack (agent version from .env)
+AGENT_VERSION = $(shell sed -n 's/^OTEL_AGENT_VERSION=//p' .env)
+
+up:            ## start the stack (agent version from .env) and mark the deploy in Grafana
 	docker compose up -d
+	@until curl -sf localhost:3100/api/health >/dev/null; do sleep 2; done
+	@curl -sf -X POST localhost:3100/api/annotations -H 'Content-Type: application/json' \
+	  -d '{"tags":["deploy"],"text":"Deploy: OTel Java agent $(AGENT_VERSION)"}' >/dev/null && \
+	  echo "annotated deploy of agent $(AGENT_VERSION)"
 
 down:          ## stop the stack and delete its data
 	docker compose down -v
